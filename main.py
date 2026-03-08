@@ -1,4 +1,4 @@
-
+from socket import *
 def main():
     pass
 
