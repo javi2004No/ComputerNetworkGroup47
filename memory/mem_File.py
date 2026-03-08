@@ -12,10 +12,13 @@ class mem_File:
         """
         numOfPieces = fileSize // chunkSize
         lastSize = chunkSize
-        self._chunks = []
         if fileSize % chunkSize != 0:
             lastSize = fileSize % chunkSize
             numOfPieces += 1
+        self._chunks = []
+        self._chunksLeft = numOfPieces
+        if hasFile == 1:
+            self._chunksLeft = 0
         if copyThis == []:
             for i in range(numOfPieces):
                 if i == numOfPieces-1:
@@ -27,6 +30,7 @@ class mem_File:
                 val = 0
                 if i in copyThis:
                     val = 1
+                    self._chunksLeft -= 1
                 if i == numOfPieces-1:
                     self._chunks.append([val for j in range(lastSize)])
                 else:
@@ -63,6 +67,13 @@ class mem_File:
         """
         for k, i in enumerate(indexes):
             self._chunks[i] = chunksGiven[k]
+
+    def complete(self):
+        """
+        Checks if we have any chunks left to download.
+        :return: returns true if there are no chunks left to download.
+        """
+        return self._chunksLeft == 0
 
 
 
