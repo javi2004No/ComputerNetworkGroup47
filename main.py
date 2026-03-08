@@ -1,6 +1,9 @@
 from socket import *
+from client import start_client
+
+
 def main():
-    pass
+    start_client()
 
 
 if __name__ == "__main__":
