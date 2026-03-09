@@ -17,7 +17,7 @@ def handle_client(connection, address):
         connection.close()
 
 
-def start_server(host="127.0.0.1", port=5000):
+def start_server(host="127.0.0.1", port=5000, my_peer_id=0):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((host, port))
     server_socket.listen()
@@ -29,13 +29,3 @@ def start_server(host="127.0.0.1", port=5000):
         threading.Thread(
             target=handle_client, args=(connection, address)
         ).start()  # each client will be handled in a separate thread
-
-
-if __name__ == "__main__":
-    # I gonna update the path as well as the peer id later
-    common_cfg = load_common_cfg("common.cfg")
-    peers = load_peer_cfg("peer.cfg")
-    my_peer_id = int(sys.argv[1])
-
-    my_peer_info = get_my_peer_info(peers, my_peer_id)
-    start_server(my_peer_info["host"], my_peer_info["port"])

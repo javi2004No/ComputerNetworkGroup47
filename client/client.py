@@ -1,14 +1,15 @@
 import socket
+from memory.PeerState import PeerState
 
 
-def start_client(host="127.0.0.1", port=5000):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect((host, port))
-    client_socket.sendall(b"Hello, Server!")
-    response = client_socket.recv(4096)
-    print(f"Received from server: {response.decode()}")
-    client_socket.close()
+def connect_to_previous_peers(state: PeerState):
+    previous = []
+    for peer in state.peers:
+        if peer["peer_id"] == state.my_peer_id:
+            break
+        previous.append(peer)
 
-
-if __name__ == "__main__":
-    start_client()
+    # connect to all previous peers, perform handshake, vv.
+    for peer in previous:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((peer["host"], peer["port"]))
