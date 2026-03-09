@@ -4,15 +4,15 @@ import random
 
 class _data:
     def __init__(self):
-        self.bitmap
+        self.file
         self.choked = True
+        self.interested = False
+        self.interestedIn = False
 
 
 class memory_main:
 
-    def __init__(
-        self, hasFile, fileSize, chunkSize, interval, num_of_preferred_neighbors
-    ):
+    def __init__(self, hasFile, fileSize, chunkSize, interval, num_of_preferred_neighbors):
         """
         Set up the memeory object with the current bitmap.
         :param hasFile: Weather the host has the bitmap or not. 1 if the host has the bitmap. 0 if not.
@@ -21,7 +21,7 @@ class memory_main:
         :param interval: The interval time.
         :param num_of_preferred_neighbors: The max number of preferred neighbors.
         """
-        self._bitmap = mem_File(hasFile, fileSize, chunkSize, [])
+        self._file = mem_File(hasFile, fileSize, chunkSize, [])
         self._neighbors = {}
         self._fileSize = fileSize
         self._chunkSize = chunkSize
@@ -36,9 +36,7 @@ class memory_main:
         :param chunks: The chunks that the neighbor contains.
         """
         self._neighbors[name] = _data()
-        self._neighbors[name].bitmap = mem_File(
-            0, self._fileSize, self._chunkSize, chunks
-        )
+        self._neighbors[name].file = mem_File(0, self._fileSize, self._chunkSize, chunks)
 
     def update_neighbor(self, name, indexes, chunks):
         """
@@ -47,7 +45,7 @@ class memory_main:
         :param indexes: The indexes of chunks to update.
         :param chunks: The chunks to replace them with.
         """
-        self._neighbors[name].bitmap.update(indexes, chunks)
+        self._neighbors[name].file.update(indexes, chunks)
 
     def update_bitmap(self, index, chunk):
         """
@@ -55,7 +53,7 @@ class memory_main:
         :param index: The index of the chunk to update.
         :param chunk: What to update the chunk to.
         """
-        self._bitMap.update([index], [chunk])
+        self._file.update([index], [chunk])
 
     def interest(self, neighbor):
         """
@@ -65,8 +63,8 @@ class memory_main:
         :return: A list of chunks that we can request from the neighbor.
         """
         return list(
-            set(self._bitMap.piecesNeed())
-            & set(self._neighbors[neighbor].bitmap.havePieces())
+            set(self._file.pieces(0))
+            & set(self._neighbors[neighbor].file.pieces(1))
         )
 
     def all_interests(self):
@@ -92,6 +90,8 @@ class memory_main:
         :param arr: the values to pick from.
         :return: list of a random selection of values from values.
         """
+        if num >= len(arr):
+            return arr
         ans = []
         for i in range(num):
             ans.append(arr.pop(random.randint(0, len(arr) - 1)))
@@ -107,8 +107,8 @@ class memory_main:
         to_unchoke = []
         # Will use the download rates to pick its preferred neighbors if the bitmap is not complete otherwise it will
         # just pick randomly
-        if not self._bitmap.complete():
-            download_rates = calculate_download_rate(downloads)
+        if not self._file.complete():
+            download_rates = self.calculate_download_rate(downloads)
             download_rates.sort(reverse=True)
             cur = 0
             while cur < self._windowSize:
@@ -132,7 +132,7 @@ class memory_main:
         # Also assumes that nothing will go wrong in the sending choking/unchoking message part.
         choke = []
         unchoke = []
-        for id, data in self._neighbors:
+        for id, data in self._neighbors.items():
             if data.choked and id not in to_unchoke:
                 choke.append(id)
                 self._neighbors[id].choke = False
@@ -140,3 +140,26 @@ class memory_main:
                 unchoke.append(id)
                 self._neighbors[id].choke = True
         return unchoke, choke
+
+    def pick_optimistic_neighbor(self):
+        """
+        Picks a random neighbor that is interested in it and is choked.
+        :return: returns the neighbor that should be unchoked and if a neighbor needs to be choked.
+        """
+        choke = -1
+        if self._optimistic_neighbor != -1 and not self._neighbors[self._optimistic_neighbor].choke:
+            choke = self._optimistic_neighbor
+        arr = []
+        for id, val in self._neighbors.items():
+            if not val.choked and val.interested:
+                arr.append(id)
+        arr = self.pick_random_n(1, id)
+        if arr == []:
+            self._optimistic_neighbor = -1
+        else:
+            self._optimistic_neighbor = arr[0]
+        return self._optimistic_neighbor, choke
+
+
+
+
