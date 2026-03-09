@@ -1,13 +1,18 @@
 import mem_File
 import random
+
+
 class _data:
     def __init__(self):
-        self.bitmap;
+        self.bitmap
         self.choked = True
+
 
 class memory_main:
 
-    def __init__(self, hasFile, fileSize, chunkSize, interval, num_of_preferred_neighbors):
+    def __init__(
+        self, hasFile, fileSize, chunkSize, interval, num_of_preferred_neighbors
+    ):
         """
         Set up the memeory object with the current bitmap.
         :param hasFile: Weather the host has the bitmap or not. 1 if the host has the bitmap. 0 if not.
@@ -22,7 +27,7 @@ class memory_main:
         self._chunkSize = chunkSize
         self._interval = interval
         self._windowSize = num_of_preferred_neighbors
-        self._optimistic_neighbor = -1;
+        self._optimistic_neighbor = -1
 
     def add_neighbor(self, name, chunks):
         """
@@ -31,7 +36,9 @@ class memory_main:
         :param chunks: The chunks that the neighbor contains.
         """
         self._neighbors[name] = _data()
-        self._neighbors[name].bitmap = mem_File(0, self._fileSize, self._chunkSize, chunks)
+        self._neighbors[name].bitmap = mem_File(
+            0, self._fileSize, self._chunkSize, chunks
+        )
 
     def update_neighbor(self, name, indexes, chunks):
         """
@@ -57,7 +64,10 @@ class memory_main:
         :param neighbor: The id of the neighbor we are interested in.
         :return: A list of chunks that we can request from the neighbor.
         """
-        return list(set(self._bitMap.piecesNeed()) & set(self._neighbors[neighbor].bitmap.havePieces()))
+        return list(
+            set(self._bitMap.piecesNeed())
+            & set(self._neighbors[neighbor].bitmap.havePieces())
+        )
 
     def all_interests(self):
         """
@@ -73,7 +83,7 @@ class memory_main:
         second value in the inner array being the size of the download.
         :return: A list of the download rates.
         """
-        return [download[1]/self._interval for download in downloads]
+        return [download[1] / self._interval for download in downloads]
 
     def pick_random_n(self, num, arr):
         """
@@ -84,7 +94,7 @@ class memory_main:
         """
         ans = []
         for i in range(num):
-            ans.append(arr.pop(random.randint(0, len(arr)-1)))
+            ans.append(arr.pop(random.randint(0, len(arr) - 1)))
         return ans
 
     def pick_preferred_neighbors(self, downloads):
@@ -99,7 +109,7 @@ class memory_main:
         # just pick randomly
         if not self._bitmap.complete():
             download_rates = calculate_download_rate(downloads)
-            download_rates.sort(reverse = True)
+            download_rates.sort(reverse=True)
             cur = 0
             while cur < self._windowSize:
                 i = cur
@@ -127,9 +137,3 @@ class memory_main:
             elif not data.choked and id in to_unchoke:
                 unchoke.append(id)
         return unchoke, choke
-
-
-
-
-
-
