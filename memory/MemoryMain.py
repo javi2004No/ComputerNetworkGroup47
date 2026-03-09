@@ -167,3 +167,28 @@ class MemoryMain:
         else:
             self._optimistic_neighbor = arr[0]
         return self._optimistic_neighbor, choked
+
+    # --------------------from here will be peer controller script that will be triggered on event of protocol-------------------------------------
+    def handle_choke(self, peer_id):
+        pass
+
+    def handle_unchoke(self, peer_id):
+        pass
+
+    def handle_interested(self, peer_id):
+        pass
+
+    def handle_not_interested(self, peer_id):
+        pass
+
+    def handle_have(self, peer_id, piece_index):
+        pass
+
+    def handle_bitfield(self, peer_id, bitfield):
+        pass
+
+    def handle_request(self, peer_id, piece_index):
+        pass
+
+    def handle_piece(self, peer_id, piece_index, data):
+        pass

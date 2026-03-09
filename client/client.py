@@ -2,6 +2,8 @@ import socket
 from memory.PeerState import PeerState
 
 
+# Client will responsible for: Connect to previous peers, perform handshake, vv.
+# No protocol decision logic here
 def connect_to_previous_peers(state: PeerState):
     previous = []
     for peer in state.peers:
