@@ -66,6 +66,11 @@ class mem_File:
         :return: Nothing.
         """
         for k, i in enumerate(indexes):
+            if self._chunks[i][0] == 0 and chunksGiven[k][0] == 1:
+                self._chunksLeft -= 1
+            elif self._chunks[i][0] == 1 and chunksGiven[k][0] == 0:
+                self._chunksLeft += 1
+                print("I should not be erasing chunks.")
             self._chunks[i] = chunksGiven[k]
 
     def complete(self):

@@ -129,11 +129,14 @@ class memory_main:
             for download in downloads_selected:
                 to_unchoke.append(download[0])
         # Only returns the changing neighbors e.g neighbors that are choked and need to be unchoked and vice versa.
+        # Also assumes that nothing will go wrong in the sending choking/unchoking message part.
         choke = []
         unchoke = []
         for id, data in self._neighbors:
             if data.choked and id not in to_unchoke:
                 choke.append(id)
+                self._neighbors[id].choke = False
             elif not data.choked and id in to_unchoke:
                 unchoke.append(id)
+                self._neighbors[id].choke = True
         return unchoke, choke
