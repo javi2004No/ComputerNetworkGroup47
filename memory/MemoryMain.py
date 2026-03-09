@@ -108,7 +108,9 @@ class MemoryMain:
         # just pick randomly
         if not self._file.isComplete():
             download_rates = self.calculate_download_rate(downloads)
-            download_rates.sort(reverse=True)
+            download_rates.sort(
+                reverse=True
+            )  # pick based on top fastest download rates
             cur = 0
             while cur < self._windowSize:
                 i = cur
