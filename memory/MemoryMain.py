@@ -1,33 +1,37 @@
 import mem_File
 import random
+from PeerState import PeerState
 
 
-class _data:
+class NeighborData:
     def __init__(self):
-        self.file
-        self.choked = True
-        self.interested = False
-        self.interestedIn = False
+        self.file = None
+        self.choked = True  # initially choke, only unchoke decided by download rate or optimistic unchoking will be unchoked
+        self.interested = False  # whether we is interested in this peer or not
+        self.interestedIn = False  # whether this peer is interest in us or not
 
 
-class memory_main:
-
-    def __init__(self, hasFile, fileSize, chunkSize, interval, num_of_preferred_neighbors):
+class MemoryMain:
+    def __init__(self, peerState: PeerState) -> None:
         """
-        Set up the memeory object with the current bitmap.
-        :param hasFile: Weather the host has the bitmap or not. 1 if the host has the bitmap. 0 if not.
-        :param fileSize: The size of the file.
-        :param chunkSize: The size of the chunks separating the file.
-        :param interval: The interval time.
-        :param num_of_preferred_neighbors: The max number of preferred neighbors.
+        Set up the memory object with the current bitmap.
+        :param peerState: The state of the peer containing configuration and peer information.
         """
-        self._file = mem_File(hasFile, fileSize, chunkSize, [])
+        bitField = []
+        # I am not sure what chunks each thefile have so I assume currently it is either all or nothing, I will update it later when I have more information about the file distribution
+        if peerState.has_file == 1:
+            bitField = [1] * (peerState.file_size // peerState.piece_size)
+        else:
+            bitField = [0] * (peerState.file_size // peerState.piece_size)
+        self._file = mem_File(
+            peerState.has_file, peerState.file_size, peerState.piece_size, bitField
+        )
         self._neighbors = {}
-        self._fileSize = fileSize
-        self._chunkSize = chunkSize
-        self._interval = interval
-        self._windowSize = num_of_preferred_neighbors
-        self._optimistic_neighbor = -1
+        self._fileSize = peerState.file_size
+        self._chunkSize = peerState.piece_size
+        self._interval = peerState.unchoking_interval
+        self._windowSize = peerState.number_of_prefered_neighbors
+        self._optimistic_neighbor = -1  # undefined yet
 
     def add_neighbor(self, name, chunks):
         """
@@ -35,17 +39,10 @@ class memory_main:
         :param name: The ID of the neighbor.
         :param chunks: The chunks that the neighbor contains.
         """
-        self._neighbors[name] = _data()
-        self._neighbors[name].file = mem_File(0, self._fileSize, self._chunkSize, chunks)
-
-    def update_neighbor(self, name, indexes, chunks):
-        """
-        Updates the bitmap of the neighbor.
-        :param name: The ID of the neighbor.
-        :param indexes: The indexes of chunks to update.
-        :param chunks: The chunks to replace them with.
-        """
-        self._neighbors[name].file.update(indexes, chunks)
+        self._neighbors[name] = NeighborData()
+        self._neighbors[name].file = mem_File(
+            0, self._fileSize, self._chunkSize, chunks
+        )
 
     def update_bitmap(self, index, chunk):
         """
@@ -63,8 +60,7 @@ class memory_main:
         :return: A list of chunks that we can request from the neighbor.
         """
         return list(
-            set(self._file.pieces(0))
-            & set(self._neighbors[neighbor].file.pieces(1))
+            set(self._file.pieces(0)) & set(self._neighbors[neighbor].file.pieces(1))
         )
 
     def all_interests(self):
@@ -72,7 +68,7 @@ class memory_main:
         Get interests for all the neighbors.
         :return: A list of interests from all neighbors.
         """
-        return [interest(neighbor) for neighbor in self._neighbors.keys()]
+        return [self.interest(neighbor) for neighbor in self._neighbors.keys()]
 
     def calculate_download_rate(self, downloads):
         """
@@ -147,7 +143,10 @@ class memory_main:
         :return: returns the neighbor that should be unchoked and if a neighbor needs to be choked.
         """
         choke = -1
-        if self._optimistic_neighbor != -1 and not self._neighbors[self._optimistic_neighbor].choke:
+        if (
+            self._optimistic_neighbor != -1
+            and not self._neighbors[self._optimistic_neighbor].choke
+        ):
             choke = self._optimistic_neighbor
         arr = []
         for id, val in self._neighbors.items():
@@ -159,7 +158,3 @@ class memory_main:
         else:
             self._optimistic_neighbor = arr[0]
         return self._optimistic_neighbor, choke
-
-
-
-
