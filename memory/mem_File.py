@@ -36,25 +36,10 @@ class mem_File:
                 else:
                     self._chunks.append([val for j in range(chunkSize)])
 
-    def havePieces(self):
-        """
-        Get a list of the indexes the pieces we have.
-        :return: the list of pieces
-        """
+    def pieces(self, has):
         ans = []
         for i in range(len(self.chunks)):
-            if self._chunks[i][0] == 1:
-                ans.append(i)
-        return ans
-
-    def piecesNeed(self):
-        """
-        Get a list of the indexes of the pieces we need.
-        :return: the list of pieces.
-        """
-        ans = []
-        for i in range(len(self.chunks)):
-            if self._chunks[i][0] == 0:
+            if self._chunks[i][0] == has:
                 ans.append(i)
         return ans
 
