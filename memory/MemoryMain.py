@@ -44,15 +44,17 @@ class MemoryMain:
             0, self._fileSize, self._chunkSize, chunks
         )
 
-    def update_bitmap(self, index, chunk):
+    def download_bitmap(self, indexes: list[int], downloadChunks) -> None:
         """
-        Updates a chunk in the current bitmap.
+        Download a chunk to mem_File. Call mem_File API
         :param index: The index of the chunk to update.
         :param chunk: What to update the chunk to.
         """
-        self._file.update([index], [chunk])
+        if len(indexes) != len(downloadChunks):
+            return
+        self._file.update(indexes, downloadChunks)
 
-    def interest(self, neighbor):
+    def interest(self, neighbor) -> list[int]:
         """
         Returns what chunks our current client would be interested in from its neighbor. e.g. what chunks do they have
         that we don't.
@@ -60,17 +62,18 @@ class MemoryMain:
         :return: A list of chunks that we can request from the neighbor.
         """
         return list(
-            set(self._file.pieces(0)) & set(self._neighbors[neighbor].file.pieces(1))
+            set(self._file.getChunksIndex(0))
+            & set(self._neighbors[neighbor].file.getChunksIndex(1))
         )
 
-    def all_interests(self):
+    def all_interests(self) -> list[list[int]]:
         """
         Get interests for all the neighbors.
         :return: A list of interests from all neighbors.
         """
         return [self.interest(neighbor) for neighbor in self._neighbors.keys()]
 
-    def calculate_download_rate(self, downloads):
+    def calculate_download_rate(self, downloads) -> list[float]:
         """
         Calculates the download rates of all neighbors.
         :param downloads: The amount of data that was downloaded from the neighbors. Assumes it's a 2d array with the
@@ -79,7 +82,7 @@ class MemoryMain:
         """
         return [download[1] / self._interval for download in downloads]
 
-    def pick_random_n(self, num, arr):
+    def pick_random_n(self, num: int, arr: list) -> list[int]:
         """
         Picks a number of values randomly.
         :param num: how many values should be picked.
@@ -93,7 +96,7 @@ class MemoryMain:
             ans.append(arr.pop(random.randint(0, len(arr) - 1)))
         return ans
 
-    def pick_preferred_neighbors(self, downloads):
+    def pick_preferred_neighbors(self, downloads) -> tuple[list[int], list[int]]:
         """
         Picks the new preferred_neighbors.
         :param downloads: the id of the neighbors followed by the amount of downloads of said neighbor.
@@ -103,7 +106,7 @@ class MemoryMain:
         to_unchoke = []
         # Will use the download rates to pick its preferred neighbors if the bitmap is not complete otherwise it will
         # just pick randomly
-        if not self._file.complete():
+        if not self._file.isComplete():
             download_rates = self.calculate_download_rate(downloads)
             download_rates.sort(reverse=True)
             cur = 0
@@ -129,12 +132,14 @@ class MemoryMain:
         choke = []
         unchoke = []
         for id, data in self._neighbors.items():
-            if data.choked and id not in to_unchoke:
+            if (
+                data.choked and id in to_unchoke
+            ):  # Vinh: Edit condition here to only unchoke peers that are in the to_unchoke list and currently choked.
                 choke.append(id)
-                self._neighbors[id].choke = False
-            elif not data.choked and id in to_unchoke:
+                self._neighbors[id].choked = False
+            elif not data.choked and id not in to_unchoke:
                 unchoke.append(id)
-                self._neighbors[id].choke = True
+                self._neighbors[id].choked = True
         return unchoke, choke
 
     def pick_optimistic_neighbor(self):
@@ -142,19 +147,21 @@ class MemoryMain:
         Picks a random neighbor that is interested in it and is choked.
         :return: returns the neighbor that should be unchoked and if a neighbor needs to be choked.
         """
-        choke = -1
+        choked = -1
         if (
             self._optimistic_neighbor != -1
-            and not self._neighbors[self._optimistic_neighbor].choke
+            and not self._neighbors[self._optimistic_neighbor].choked
         ):
-            choke = self._optimistic_neighbor
+            choked = self._optimistic_neighbor
         arr = []
         for id, val in self._neighbors.items():
-            if not val.choked and val.interested:
+            if (
+                val.choked and val.interested
+            ):  # Vinh: Edit condition here to only consider peers interested in us and choked.
                 arr.append(id)
-        arr = self.pick_random_n(1, id)
+        arr = self.pick_random_n(1, arr)
         if arr == []:
             self._optimistic_neighbor = -1
         else:
             self._optimistic_neighbor = arr[0]
-        return self._optimistic_neighbor, choke
+        return self._optimistic_neighbor, choked

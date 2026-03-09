@@ -33,10 +33,11 @@ class mem_File:
                     break
                 self._chunks.append(chunk)
 
-    def getChunksIndex(self, has) -> list[int]:
+    def getChunksIndex(self, has: int) -> list[int]:
         """
         Get the list of index of chunk that this peer has. Check bit field to get these indexes.
 
+        :has: 1 if we want the indexes of the chunks that this peer has, 0 if we want the indexes of the chunks that this peer does not have.
         :return: A list of indexes of chunks that this peer has (if has = 1) or does not have (if has = 0).
         """
         ans = []
@@ -45,7 +46,7 @@ class mem_File:
                 ans.append(i)
         return ans
 
-    def update(self, indexes, chunksGiven):
+    def update(self, indexes: list[int], chunksGiven: list[list[int]]) -> None:
         """
         Updates the file with the requested piece. This function assumes that the indexes directly correspond to
         :param indexes: The index of the changes piece.
@@ -53,14 +54,12 @@ class mem_File:
         :return: Nothing.
         """
         for k, i in enumerate(indexes):
-            if self._bitField[i] == 0 and chunksGiven[k][0] == 1:
+            if self._bitField[i] == 0:
                 self._chunksLeft -= 1
-            elif self._bitField[i] == 1 and chunksGiven[k][0] == 0:
-                self._chunksLeft += 1
-                print("I should not be erasing chunks.")
-            self._bitField[i] = chunksGiven[k][0]
+                self._chunks[i] = chunksGiven[k]
+            self._bitField[i] = 1
 
-    def complete(self):
+    def isComplete(self) -> bool:
         """
         Checks if we have any chunks left to download.
         :return: returns true if there are no chunks left to download.
