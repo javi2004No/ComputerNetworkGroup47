@@ -1,5 +1,5 @@
 import math
-class clientFile:
+class mem_File:
 
     def __init__(self, hasFile, fileSize, chunkSize, copyThis):
         """
@@ -12,25 +12,29 @@ class clientFile:
         """
         numOfPieces = fileSize // chunkSize
         lastSize = chunkSize
-        self.chunks = []
         if fileSize % chunkSize != 0:
             lastSize = fileSize % chunkSize
             numOfPieces += 1
+        self._chunks = []
+        self._chunksLeft = numOfPieces
+        if hasFile == 1:
+            self._chunksLeft = 0
         if copyThis == []:
             for i in range(numOfPieces):
                 if i == numOfPieces-1:
-                    self.chunks.append([hasFile for j in range(lastSize)])
+                    self._chunks.append([hasFile for j in range(lastSize)])
                 else:
-                    self.chunks.append([hasFile for j in range(chunkSize)])
+                    self._chunks.append([hasFile for j in range(chunkSize)])
         else:
             for i in range(numOfPieces):
                 val = 0
                 if i in copyThis:
                     val = 1
+                    self._chunksLeft -= 1
                 if i == numOfPieces-1:
-                    self.chunks.append([val for j in range(lastSize)])
+                    self._chunks.append([val for j in range(lastSize)])
                 else:
-                    self.chunks.append([val for j in range(chunkSize)])
+                    self._chunks.append([val for j in range(chunkSize)])
 
     def havePieces(self):
         """
@@ -39,7 +43,7 @@ class clientFile:
         """
         ans = []
         for i in range(len(self.chunks)):
-            if self.chunks[i][0] == 1:
+            if self._chunks[i][0] == 1:
                 ans.append(i)
         return ans
 
@@ -50,7 +54,7 @@ class clientFile:
         """
         ans = []
         for i in range(len(self.chunks)):
-            if self.chunks[i][0] == 0:
+            if self._chunks[i][0] == 0:
                 ans.append(i)
         return ans
 
@@ -62,7 +66,14 @@ class clientFile:
         :return: Nothing.
         """
         for k, i in enumerate(indexes):
-            self.chunks[i] = indexes[k]
+            self._chunks[i] = chunksGiven[k]
+
+    def complete(self):
+        """
+        Checks if we have any chunks left to download.
+        :return: returns true if there are no chunks left to download.
+        """
+        return self._chunksLeft == 0
 
 
 
