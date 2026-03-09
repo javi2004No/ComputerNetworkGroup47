@@ -65,3 +65,8 @@ class mem_File:
         :return: returns true if there are no chunks left to download.
         """
         return self._chunksLeft == 0
+
+    def getSizeOfChunk(self, index):
+        if index == self._chunksCount - 1:
+            return self._lastSize
+        return self._chunkSize
