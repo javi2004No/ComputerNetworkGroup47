@@ -1,3 +1,4 @@
+from memory.MemoryMain import MemoryMain
 from server.config import load_common_cfg, load_peer_cfg, get_my_peer_info
 from server.server import start_server
 import sys
@@ -15,6 +16,7 @@ def main():
     start_server(my_peer_info["host"], my_peer_info["port"], my_peer_id)
     peer_state = PeerState(my_peer_id, common_cfg, peers)
     connect_to_previous_peers(peer_state)
+    memory = MemoryMain(peer_state)
 
 
 if __name__ == "__main__":
