@@ -1,15 +1,7 @@
-from helper import recv_exact
+from utils.helper import recv_exact
 import socket
-
-HEADER = b"P2PFILESHARINGPROJ"
-ZEROS = b"\x00" * 10
-HANDSHAKE_MSG_LENGTH = 32  # 32 bytes in total
-
-
-def create_handshake_msg(peer_id: int) -> bytes:
-    return (
-        HEADER + ZEROS + peer_id.to_bytes(4, byteorder="big")
-    )  # struct.pack(">I", peer_id)
+from utils.constant import HEADER, ZEROS, HANDSHAKE_MSG_LENGTH
+from handshake import create_handshake_msg
 
 
 def send_handshake(socket, peer_id: int) -> None:
