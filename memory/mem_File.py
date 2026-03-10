@@ -12,12 +12,12 @@ class mem_File:
         if fileSize % chunkSize != 0:
             self._lastSize = fileSize % chunkSize
             self._chunksCount += 1  # is mean the remainder are the size of the last one, we add one more to the total count
-        self._chunks = []
+        self._chunks = {} # Made chunks a dictionary that connects id to the chunk itself.
         self._chunkSize = chunkSize
         self._chunksLeft = self._chunksCount
         if hasFile == 1:
             self._chunksLeft = 0
-        self._bitField = bitField
+        self._bitField = bitField # For reference bitfiled is a list where each value in the list is 0 if the chunk does not exist or 1 if it does.
 
     def loadChunks(self, filePath):
         """
@@ -31,7 +31,7 @@ class mem_File:
                     chunk = f.read(self._lastSize)
                 if not chunk:
                     break
-                self._chunks.append(chunk)
+                self._chunks[i] = chunk
 
     def getChunksIndex(self, has: int) -> list[int]:
         """
@@ -48,7 +48,7 @@ class mem_File:
 
     def update(self, indexes: list[int], chunksGiven: list[list[int]]) -> None:
         """
-        Updates the file with the requested piece. This function assumes that the indexes directly correspond to
+        Updates the file with the requested piece. This function assumes that the indexes directly correspond to.
         :param indexes: The index of the changes piece.
         :param chunksGiven: The piece itself.
         :return: Nothing.
@@ -67,6 +67,20 @@ class mem_File:
         return self._chunksLeft == 0
 
     def getSizeOfChunk(self, index):
+        """
+        Gets the size of a chunk.
+        :param index: The index of the specified chunk.
+        """
         if index == self._chunksCount - 1:
             return self._lastSize
         return self._chunkSize
+
+    def getChunk(self, index):
+        """
+        Gets the chunk specified by the index value.
+        :param index: the index of the chunk.
+        :return: The chunk if we have it or an empty list if we don't.
+        """
+        if self._bitField[index] == 0:
+            return []
+        return self._chunks[index]
