@@ -3,12 +3,12 @@ import random
 from PeerState import PeerState
 
 
-class NeighborData:
+class _NeighborData:
     def __init__(self):
         self.file = None
         self.choked = True  # initially choke, only unchoke decided by download rate or optimistic unchoking will be unchoked
-        self.interested = False  # whether we is interested in this peer or not
-        self.interestedIn = False  # whether this peer is interest in us or not
+        self.interested = False  # whether we are interested in this peer or not
+        self.interestedIn = False  # whether this peer is interested in us or not
 
 
 class MemoryMain:
@@ -32,17 +32,39 @@ class MemoryMain:
         self._interval = peerState.unchoking_interval
         self._windowSize = peerState.number_of_prefered_neighbors
         self._optimistic_neighbor = -1  # undefined yet
+        self._requests = set() # A set containing all the requests we have sent.
+        self._peer_id_to_request = {} # A dictionary containing what request I have sent to what peer.
 
     def add_neighbor(self, name, chunks):
         """
         Creates a bitmap for the neighbor specified by name.
         :param name: The ID of the neighbor.
         :param chunks: The chunks that the neighbor contains.
+        :return: True if we are interested in the neighbor false otherwise.
         """
-        self._neighbors[name] = NeighborData()
+        self._neighbors[name] = _NeighborData()
         self._neighbors[name].file = mem_File(
             0, self._fileSize, self._chunkSize, chunks
         )
+        if self.interest(name) != []:
+            self._neighbors.interested = True
+            return True
+        return False
+
+    def update_neighbor(self, name, indexes, chunks):
+        """
+        Updates the bitmap of the neighbor. Also updates if we are interested in them now.
+        :param name: The ID of the neighbor.
+        :param indexes: The indexes of chunks to update.
+        :param chunks: The chunks to replace them with.
+        :return: return true if we should send an interested message. Warning: False only means we should not send
+        any message not that we should send a not interested message.
+        """
+        self._neighbors[name].file.update(indexes, chunks)
+        if not self._neighbors[name].interested and self.interest(name) != []:
+            self._neighbors.interested = True
+            return True
+        return False
 
     def download_bitmap(self, indexes: list[int], downloadChunks) -> None:
         """
@@ -68,10 +90,24 @@ class MemoryMain:
 
     def all_interests(self) -> list[list[int]]:
         """
-        Get interests for all the neighbors.
-        :return: A list of interests from all neighbors.
+        Get interests for all the neighbors and checks weather we need to send a message.
+        :return: A list of interests from all neighbors in the format of [neighbor, piece_index1, piece_index2, ...].
+        If we are not interested in a neighbor and we need to send a not-interested message return [neighbor, -1] for
+        that neighbor. Else if we already sent the non-interested message return [neighbor, -2].
         """
-        return [self.interest(neighbor) for neighbor in self._neighbors.keys()]
+        fullInterests = []
+        for neighbor in self._neighbors.keys():
+            interestedIn = self.interest(neighbor)
+            if interestedIn == []:
+                if self._neighbors[neighbor].intested:
+                    fullInterests.append([neighbor, -1])
+                    self._neighbors[neighbor].interested = False
+                else:
+                    fullInterests.append([neighbor, -2])
+
+            else:
+                fullInterests.append([neighbor] + interestedIn)
+        return fullInterests
 
     def calculate_download_rate(self, downloads) -> list[float]:
         """
@@ -137,10 +173,10 @@ class MemoryMain:
             if (
                 data.choked and id in to_unchoke
             ):  # Vinh: Edit condition here to only unchoke peers that are in the to_unchoke list and currently choked.
-                choke.append(id)
+                unchoke.append(id)
                 self._neighbors[id].choked = False
             elif not data.choked and id not in to_unchoke:
-                unchoke.append(id)
+                choke.append(id)
                 self._neighbors[id].choked = True
         return unchoke, choke
 
@@ -152,7 +188,7 @@ class MemoryMain:
         choked = -1
         if (
             self._optimistic_neighbor != -1
-            and not self._neighbors[self._optimistic_neighbor].choked
+            and self._neighbors[self._optimistic_neighbor].choked
         ):
             choked = self._optimistic_neighbor
         arr = []
@@ -169,26 +205,101 @@ class MemoryMain:
         return self._optimistic_neighbor, choked
 
     # --------------------from here will be peer controller script that will be triggered on event of protocol-------------------------------------
+    def pick_request(self, peer_id):
+        """
+        Picks a piece to request from a specific peer following random selection strategy.
+        :param peer_id: The ID of the peer we are requesting a piece from.
+        :return: Returns the index of the piece we are interested in. If we are not interested in any piece returns -1.
+        """
+        if not self._neighbors[peer_id].interested:
+            return -1
+        possible_requests = set(self.interest(peer_id)) - self._requests
+        if possible_requests == []:
+            return -1
+        self._peer_id_to_request[peer_id] = self.pick_random_n(1, possible_requests)[0]
+        self._requests.add(self._peer_id_to_request[peer_id])
+        return self._peer_id_to_request[peer_id]
+
     def handle_choke(self, peer_id):
-        pass
+        """
+        Handles receiving a choke message from a peer.
+        :param peer_id: The ID of the sender.
+        """
+        if peer_id in self._peer_id_to_request.keys():
+            self._requests.pop(self._peer_id_to_request[peer_id])
+            self._peer_id_to_request.pop(peer_id)
 
     def handle_unchoke(self, peer_id):
-        pass
+        """
+        Handles receiving an unchoke message from a peer.
+        :param peer_id: The ID of the sender.
+        :return: Returns the index of the piece we want to request from the peer specified in peer_id. returns -1 if
+        we are not interested in any piece.
+        """
+        return self.pick_request(peer_id)
 
     def handle_interested(self, peer_id):
-        pass
+        """
+        Handles receiving an interested message from a peer.
+        :param peer_id: The ID of the sender.
+        """
+        self._neighbors[peer_id].interestedIn = True
 
     def handle_not_interested(self, peer_id):
-        pass
+        """
+        Handles receiving a not interested message from a peer.
+        :param peer_id: The ID of the sender.
+        """
+        self._neighbors[peer_id].interestedIn = False
 
     def handle_have(self, peer_id, piece_index):
-        pass
+        """
+        Handles receiving a have message from a peer.
+        :param peer_id: The ID of the sender.
+        :param piece_index: The index of the piece.
+        :return: True if we should send an interested message false otherwise. False means we should not send any message.
+        """
+        return self.update_neighbor(peer_id, [piece_index], [[]])
 
     def handle_bitfield(self, peer_id, bitfield):
-        pass
+        """
+        Handles receiving a bitfield message from a peer.
+        :param peer_id: The ID of the sender.
+        :param bitfield: The bitfield data in the message.
+        :return: True if we should send an interested message to the peer. False if we should send a not interested
+        message to the peer.
+        """
+        return self.add_neighbor(peer_id, bitfield)
 
     def handle_request(self, peer_id, piece_index):
-        pass
+        """
+        Handles receiving a request message from a peer.
+        :param peer_id: The ID of the sender.
+        :param piece_index: The index of the piece requested.
+        :return: Returns the chunk if either the neighbor is unchoked because it's a preferred neighbor or if it's the
+        optimistic neighbor. Returns an empty list if this is not true or this instance does not have the chunk
+        specified.
+        """
+        if self._neighbors[peer_id].choked and peer_id != self._optimistic_neighbor:
+            return []
+        return self._file.getChunk(piece_index)
 
     def handle_piece(self, peer_id, piece_index, data):
-        pass
+        """
+        Handles receiving a piece message from a peer.
+        :param peer_id: The ID of the sender of the message.
+        :param piece_index: The index of the chunk given.
+        :param data: The data in need of downloading.
+        :return: returns a tuple contain three values in this order: First, we have a list of peer_id's to send a
+        not-interested message to. If there is no such peers the list is empty. Second, we have the index of the piece
+        we wish to request from the same peer specified by peer_id. If we are not interested in any pieces we return -1.
+        Third, we have an int representing the length of the piece we downloaded.
+        """
+        self._file.update([piece_index], [data])
+        fullInterest = self.all_interests()
+        not_interested_message = []
+        for neighbor in fullInterest:
+            if neighbor[1] == -1:
+                not_interested_message.append(neighbor[0])
+        return not_interested_message, self.pick_request(peer_id), self._file.getSizeOfChunk(piece_index)
+
