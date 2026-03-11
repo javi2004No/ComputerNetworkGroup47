@@ -51,3 +51,15 @@ def parse_msg(msg_type: int, payload: bytes) -> dict:
         piece_index = int.from_bytes(payload[:4], byteorder="big")
         data = payload[4:]
         return {"type": PIECE_TYPE, "piece_index": piece_index, "data": data}
+
+
+def read_message(socket) -> dict:
+    """
+    Helper function to read a message from the socket and parse it into a structured format.
+
+    Returns a dictionary containing the message type and any relevant data.
+    """
+    msg_type, payload = recv_msg(socket)
+    if not msg_type or not payload:
+        raise ConnectionError("Failed to receive a valid message")
+    return parse_msg(msg_type, payload)

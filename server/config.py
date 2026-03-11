@@ -8,7 +8,7 @@ def load_common_cfg(path: str):
             cfg[key] = value
 
     # here we parsing to ensure data in correct type, for example, number of pieces should be int, not string
-    cfg["NumberOfPreferedNeighbors"] = int(cfg["NumberOfPreferedNeighbors"])
+    cfg["NumberOfPreferredNeighbors"] = int(cfg["NumberOfPreferredNeighbors"])
     cfg["UnchokingInterval"] = int(cfg["UnchokingInterval"])
     cfg["OptimisticUnchokingInterval"] = int(cfg["OptimisticUnchokingInterval"])
     cfg["FileName"] = str(cfg["FileName"])

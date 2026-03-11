@@ -1,7 +1,7 @@
 class PeerState:
     def __init__(self, my_peer_id: int, common_cfg: dict, peers: list) -> None:
         self.my_peer_id = my_peer_id
-        self.number_of_prefered_neighbors = common_cfg["NumberOfPreferedNeighbors"]
+        self.number_of_preferred_neighbors = common_cfg["NumberOfPreferredNeighbors"]
         self.unchoking_interval = common_cfg["UnchokingInterval"]
         self.optimistic_unchoking_interval = common_cfg["OptimisticUnchokingInterval"]
         self.file_name = common_cfg["FileName"]
