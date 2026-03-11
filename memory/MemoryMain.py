@@ -1,6 +1,6 @@
-import mem_File
+from memory.mem_File import mem_File
 import random
-from PeerState import PeerState
+from memory.PeerState import PeerState
 
 
 class _NeighborData:
@@ -30,7 +30,7 @@ class MemoryMain:
         self._fileSize = peerState.file_size
         self._chunkSize = peerState.piece_size
         self._interval = peerState.unchoking_interval
-        self._windowSize = peerState.number_of_prefered_neighbors
+        self._windowSize = peerState.number_of_preferred_neighbors
         self._optimistic_neighbor = -1  # undefined yet
         self._requests = set()  # A set containing all the requests we have sent.
         self._peer_id_to_request = (

@@ -1,5 +1,5 @@
-from utils.helper import read_message
 from protocol.dispatcher import dispatch_msg
+from protocol.parser import read_message
 from protocol.messages import (
     create_bitfield_msg,
     create_interested_msg,

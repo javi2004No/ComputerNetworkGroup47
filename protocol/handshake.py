@@ -1,7 +1,7 @@
 from utils.helper import recv_exact
 import socket
 from utils.constant import HEADER, ZEROS, HANDSHAKE_MSG_LENGTH
-from handshake import create_handshake_msg
+from protocol.messages import create_handshake_msg
 
 
 def send_handshake(socket, peer_id: int) -> None:
