@@ -55,16 +55,6 @@ class mem_File:
                 ans.append(i)
         return ans
 
-    def getChunk(self, index):
-        """
-        Gets the chunk specified by the index value.
-        :param index: the index of the chunk.
-        :return: The chunk if we have it or an empty list if we don't.
-        """
-        if self._bitField[index] == 0:
-            return []
-        return self._chunks[index]
-
     def getChunks(self, indexes: list[int]) -> list[bytes]:
         """
         Gets the chunks specified by the index values.
