@@ -32,8 +32,13 @@ class MemoryMain:
         self._interval = peerState.unchoking_interval
         self._windowSize = peerState.number_of_prefered_neighbors
         self._optimistic_neighbor = -1  # undefined yet
-        self._requests = set() # A set containing all the requests we have sent.
-        self._peer_id_to_request = {} # A dictionary containing what request I have sent to what peer.
+        self._requests = set()  # A set containing all the requests we have sent.
+        self._peer_id_to_request = (
+            {}
+        )  # A dictionary containing what request I have sent to what peer.
+
+    def get_my_bitfield(self):
+        return self._file.getBitfield()
 
     def add_neighbor(self, name, chunks):
         """
@@ -47,7 +52,7 @@ class MemoryMain:
             0, self._fileSize, self._chunkSize, chunks
         )
         if self.interest(name) != []:
-            self._neighbors.interested = True
+            self._neighbors[name].interested = True
             return True
         return False
 
@@ -62,7 +67,7 @@ class MemoryMain:
         """
         self._neighbors[name].file.update(indexes, chunks)
         if not self._neighbors[name].interested and self.interest(name) != []:
-            self._neighbors.interested = True
+            self._neighbors[name].interested = True
             return True
         return False
 
@@ -99,7 +104,7 @@ class MemoryMain:
         for neighbor in self._neighbors.keys():
             interestedIn = self.interest(neighbor)
             if interestedIn == []:
-                if self._neighbors[neighbor].intested:
+                if self._neighbors[neighbor].interested:
                     fullInterests.append([neighbor, -1])
                     self._neighbors[neighbor].interested = False
                 else:
@@ -214,7 +219,7 @@ class MemoryMain:
         if not self._neighbors[peer_id].interested:
             return -1
         possible_requests = set(self.interest(peer_id)) - self._requests
-        if possible_requests == []:
+        if not possible_requests:
             return -1
         self._peer_id_to_request[peer_id] = self.pick_random_n(1, possible_requests)[0]
         self._requests.add(self._peer_id_to_request[peer_id])
@@ -301,5 +306,8 @@ class MemoryMain:
         for neighbor in fullInterest:
             if neighbor[1] == -1:
                 not_interested_message.append(neighbor[0])
-        return not_interested_message, self.pick_request(peer_id), self._file.getSizeOfChunk(piece_index)
-
+        return (
+            not_interested_message,
+            self.pick_request(peer_id),
+            self._file.getSizeOfChunk(piece_index),
+        )

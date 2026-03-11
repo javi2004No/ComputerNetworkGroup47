@@ -1,5 +1,7 @@
 import struct
 
+from protocol.parser import parse_msg
+
 
 def build_msg(msg_type: int, payload: bytes = b"") -> bytes:
     """
@@ -48,3 +50,15 @@ def recv_msg(socket) -> tuple[int, bytes]:
     )  # read the rest of message into n bytes, first byte is message type, the rest is payload
     msg_type = body[0]
     return msg_type, body[1:]
+
+
+def read_message(socket) -> dict:
+    """
+    Helper function to read a message from the socket and parse it into a structured format.
+
+    Returns a dictionary containing the message type and any relevant data.
+    """
+    msg_type, payload = recv_msg(socket)
+    if not msg_type or not payload:
+        raise ConnectionError("Failed to receive a valid message")
+    return parse_msg(msg_type, payload)

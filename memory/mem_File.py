@@ -12,12 +12,21 @@ class mem_File:
         if fileSize % chunkSize != 0:
             self._lastSize = fileSize % chunkSize
             self._chunksCount += 1  # is mean the remainder are the size of the last one, we add one more to the total count
-        self._chunks = {} # Made chunks a dictionary that connects id to the chunk itself.
+        self._chunks = (
+            {}
+        )  # Made chunks a dictionary that connects id to the chunk itself.
         self._chunkSize = chunkSize
         self._chunksLeft = self._chunksCount
         if hasFile == 1:
             self._chunksLeft = 0
-        self._bitField = bitField # For reference bitfiled is a list where each value in the list is 0 if the chunk does not exist or 1 if it does.
+        self._bitField = bitField  # For reference bitfiled is a list where each value in the list is 0 if the chunk does not exist or 1 if it does.
+
+    def getBitField(self):
+        """
+        Gets the bitfield of the file.
+        :return: The bitfield of the file.
+        """
+        return self._bitField
 
     def loadChunks(self, filePath):
         """
@@ -44,6 +53,30 @@ class mem_File:
         for i in range(len(self._bitField)):
             if self._bitField[i] == has:
                 ans.append(i)
+        return ans
+
+    def getChunk(self, index):
+        """
+        Gets the chunk specified by the index value.
+        :param index: the index of the chunk.
+        :return: The chunk if we have it or an empty list if we don't.
+        """
+        if self._bitField[index] == 0:
+            return []
+        return self._chunks[index]
+
+    def getChunks(self, indexes: list[int]) -> list[bytes]:
+        """
+        Gets the chunks specified by the index values.
+        :param indexes: The indexes of the chunks.
+        :return: A list of the chunks if we have them or an empty list if we don't.
+        """
+        ans = []
+        for i in indexes:
+            if self._bitField[i] == 0:
+                ans.append(b"")
+            else:
+                ans.append(self._chunks[i])
         return ans
 
     def update(self, indexes: list[int], chunksGiven: list[list[int]]) -> None:
