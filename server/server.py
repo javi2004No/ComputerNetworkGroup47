@@ -25,7 +25,7 @@ def handle_incoming_connection(
             connections[remote_id] = connection
 
         handle_peer_connection(
-            sock=connection,
+            socket=connection,
             remote_peer_id=remote_id,
             peer_state=peer_state,
             memory=memory,

@@ -18,6 +18,9 @@ def main():
     my_peer_info = get_my_peer_info(peers, my_peer_id)
     peer_state = PeerState(my_peer_id, common_cfg, peers)
     memory = MemoryMain(peer_state)
+    connections = {}
+    connections_lock = threading.Lock()
+
     server_thread = threading.Thread(
         target=start_server,
         args=(
@@ -26,15 +29,15 @@ def main():
             my_peer_id,
             peer_state,
             memory,
-            {},
-            threading.Lock(),
+            connections,
+            connections_lock,
         ),
         daemon=True,
     )
     server_thread.start()
     time.sleep(1)
     print(f"Prepare to connect to previous peers")
-    connect_to_previous_peers(peer_state)
+    connect_to_previous_peers(peer_state, memory, connections, connections_lock)
 
     try:
         while True:
