@@ -42,7 +42,9 @@ def recv_msg(socket) -> tuple[int, bytes]:
 
     Returns a tuple containing the message type and the payload.
     """
-    length = struct.unpack(">I", socket.recv(4))[0]  # since message length is 4 bytes
+    length = struct.unpack(">I", recv_exact(socket, 4))[
+        0
+    ]  # since message length is 4 bytes
     body = recv_exact(
         socket, length
     )  # read the rest of message into n bytes, first byte is message type, the rest is payload
