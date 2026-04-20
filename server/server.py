@@ -1,7 +1,7 @@
 import socket
 import threading
 
-from protocol.handshake import perform_handshake
+from protocol.handshake import perform_incoming_handshake
 from server.config import load_common_cfg, load_peer_cfg, get_my_peer_info
 from protocol.handle_peer_connection import handle_peer_connection
 
@@ -16,17 +16,16 @@ def handle_incoming_connection(
     connections_lock,
 ):
     try:
-        remote_id = perform_handshake(
+        remote_id = perform_incoming_handshake(
             connection,
             my_peer_id,
-            expected_peer_id=None,
         )
 
         with connections_lock:
             connections[remote_id] = connection
 
         handle_peer_connection(
-            sock=connection,
+            socket=connection,
             remote_peer_id=remote_id,
             peer_state=peer_state,
             memory=memory,
@@ -54,6 +53,7 @@ def start_server(
     connections_lock=None,
 ):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print(f"DEBUG host={repr(host)}, port={repr(port)}")
     server_socket.bind((host, port))
     server_socket.listen()
     print(f"Server listening on {host}:{port}")

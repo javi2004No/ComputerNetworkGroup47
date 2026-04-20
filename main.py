@@ -11,27 +11,33 @@ from client.client import connect_to_previous_peers
 
 def main():
     # I gonna update the path as well as the peer id later
-    common_cfg = load_common_cfg(
-        "project_config_file_small/project_config_file_small/Common.cfg"
-    )
-    peers = load_peer_cfg(
-        "project_config_file_small/project_config_file_small/PeerInfo.cfg"
-    )
+    common_cfg = load_common_cfg("test-local/Common.cfg")
+    peers = load_peer_cfg("test-local/PeerInfo.cfg")
     my_peer_id = int(sys.argv[1])
 
     my_peer_info = get_my_peer_info(peers, my_peer_id)
     peer_state = PeerState(my_peer_id, common_cfg, peers)
     memory = MemoryMain(peer_state)
-    start_server(
-        my_peer_info["host"],
-        my_peer_info["port"],
-        my_peer_id,
-        peer_state,
-        memory,
-        {},
-        threading.Lock(),
-    )  # start with connection = None
-    connect_to_previous_peers(peer_state)
+    connections = {}
+    connections_lock = threading.Lock()
+
+    server_thread = threading.Thread(
+        target=start_server,
+        args=(
+            my_peer_info["host"],
+            my_peer_info["port"],
+            my_peer_id,
+            peer_state,
+            memory,
+            connections,
+            connections_lock,
+        ),
+        daemon=True,
+    )
+    server_thread.start()
+    time.sleep(1)
+    print(f"Prepare to connect to previous peers")
+    connect_to_previous_peers(peer_state, memory, connections, connections_lock)
 
     try:
         while True:

@@ -60,6 +60,4 @@ def read_message(socket) -> dict:
     Returns a dictionary containing the message type and any relevant data.
     """
     msg_type, payload = recv_msg(socket)
-    if not msg_type or not payload:
-        raise ConnectionError("Failed to receive a valid message")
     return parse_msg(msg_type, payload)

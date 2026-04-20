@@ -38,7 +38,7 @@ class MemoryMain:
         )  # A dictionary containing what request I have sent to what peer.
 
     def get_my_bitfield(self):
-        return self._file.getBitfield()
+        return self._file.getBitField()
 
     def add_neighbor(self, name, chunks):
         """
