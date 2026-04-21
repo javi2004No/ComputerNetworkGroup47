@@ -61,9 +61,7 @@ def start_server(
     server_socket.listen()
     print(f"Server listening on {host}:{port}")
     while True:
-        print("Hey")
         connection, address = server_socket.accept()
-        print("Why")
         threading.Thread(
             target=handle_incoming_connection,
             args=(
