@@ -12,6 +12,7 @@ from utils.constant import (
 )
 
 
+# we parse the raw message based on its type and return a structured dictionary
 def parse_msg(msg_type: int, payload: bytes) -> dict:
     if msg_type == CHOKE_TYPE:
         if len(payload) != 0:

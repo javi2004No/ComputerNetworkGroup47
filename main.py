@@ -3,6 +3,7 @@ import threading
 from memory.MemoryMain import MemoryMain
 from server.config import load_common_cfg, load_peer_cfg, get_my_peer_info
 from server.server import start_server
+from protocol.unchoking_scheduler import start_unchoking_scheduler
 import sys
 import time
 from memory.PeerState import PeerState
@@ -38,6 +39,11 @@ def main():
     time.sleep(1)
     print(f"Prepare to connect to previous peers")
     connect_to_previous_peers(peer_state, memory, connections, connections_lock)
+
+    # Start the unchoking scheduler
+    print(f"Starting unchoking scheduler")
+    start_unchoking_scheduler(peer_state, memory, connections, connections_lock)
+
     try:
         while True:
             time.sleep(1)

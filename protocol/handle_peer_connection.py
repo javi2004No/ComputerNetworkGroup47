@@ -18,6 +18,9 @@ from utils.constant import (
     UNCHOKE_TYPE,
     REQUEST_TYPE,
     PIECE_TYPE,
+    INTERESTED_TYPE,
+    NOT_INTERESTED_TYPE,
+    CHOKE_TYPE,
 )
 
 
@@ -44,27 +47,55 @@ def handle_peer_connection(
             )
 
             result = dispatch_msg(manager=memory, msg=msg, peer_id=remote_peer_id)
-            if msg["type"] == HAVE_TYPE:
+            
+            # Handle message responses based on message type
+            if msg["type"] == CHOKE_TYPE:
+                print(f"[Peer Connection] Peer {remote_peer_id} choked us")
+            elif msg["type"] == UNCHOKE_TYPE:
+                print(f"[Peer Connection] Peer {remote_peer_id} unchoked us")
+                piece_index = result
+                if piece_index != -1:
+                    print(f"[Peer Connection] Requesting piece {piece_index} from peer {remote_peer_id}")
+                    socket.sendall(create_request_msg(piece_index))
+            elif msg["type"] == INTERESTED_TYPE:
+                print(f"[Peer Connection] Peer {remote_peer_id} is interested")
+            elif msg["type"] == NOT_INTERESTED_TYPE:
+                print(f"[Peer Connection] Peer {remote_peer_id} is NOT interested")
+            elif msg["type"] == HAVE_TYPE:
+                print(f"[Peer Connection] Peer {remote_peer_id} has piece {msg.get('piece_index', '?')}")
                 if result:
+                    print(f"[Peer Connection] Sending interested to peer {remote_peer_id}")
                     socket.sendall(create_interested_msg())
             elif msg["type"] == BITFIELD_TYPE:
                 if result:
+                    print(f"[Peer Connection] Sending interested to peer {remote_peer_id}")
                     socket.sendall(create_interested_msg())
                 else:
+                    print(f"[Peer Connection] Sending not interested to peer {remote_peer_id}")
                     socket.sendall(create_not_interested_msg())
-            elif msg["type"] == UNCHOKE_TYPE:
-                piece_index = result
-                if piece_index != -1:
-                    socket.sendall(create_request_msg(piece_index))
-
             elif msg["type"] == REQUEST_TYPE:
-                piece_index, data = result
-                if piece_index != -1 and data is not None:
-                    socket.sendall(create_piece_msg(piece_index, bytes(data)))
-
+                piece_index = msg.get("piece_index", -1)
+                piece_data = result
+                if piece_index != -1 and piece_data is not None and piece_data != []:
+                    print(f"[Peer Connection] Sending piece {piece_index} to peer {remote_peer_id}")
+                    socket.sendall(create_piece_msg(piece_index, bytes(piece_data)))
+                else:
+                    print(f"[Peer Connection] Cannot send piece {piece_index} to peer {remote_peer_id} (choked or don't have it)")
             elif msg["type"] == PIECE_TYPE:
-                not_interestd_peers, next_req, _ = result
+                piece_index = msg.get("piece_index", -1)
+                print(f"[Peer Connection] Received piece {piece_index} from peer {remote_peer_id}")
+                not_interested_peers, next_req, piece_size = result
+                # Send not interested messages to peers that no longer have interesting pieces
+                for peer_id in not_interested_peers:
+                    if peer_id != remote_peer_id and peer_id in connections:
+                        print(f"[Peer Connection] Sending not interested to peer {peer_id}")
+                        try:
+                            connections[peer_id].sendall(create_not_interested_msg())
+                        except:
+                            pass
+                # Request next piece from same peer if available
                 if next_req != -1:
+                    print(f"[Peer Connection] Requesting next piece {next_req} from peer {remote_peer_id}")
                     socket.sendall(create_request_msg(next_req))
     except ConnectionError as e:
         print(f"[Peer Connection] Connection error with peer {remote_peer_id}: {e}")
