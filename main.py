@@ -39,7 +39,7 @@ def main():
     time.sleep(1)
     print(f"Prepare to connect to previous peers")
     connect_to_previous_peers(peer_state, memory, connections, connections_lock)
-    
+
     # Start the unchoking scheduler
     print(f"Starting unchoking scheduler")
     start_unchoking_scheduler(peer_state, memory, connections, connections_lock)

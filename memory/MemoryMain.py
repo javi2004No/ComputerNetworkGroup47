@@ -81,6 +81,7 @@ class MemoryMain:
                 0, self._fileSize, self._chunkSize, empty_bitfield
             )
 
+
     def add_neighbor(self, name, chunks):
         """
         Creates a bitmap for the neighbor specified by name.

@@ -39,7 +39,6 @@ def handle_peer_connection(
         if any(my_bitfield):
             print(f"[Peer Connection] Sending bitfield to peer {remote_peer_id}")
             socket.sendall(create_bitfield_msg(bitfield_to_bytes(my_bitfield)))
-
         print(f"[Peer Connection] Entering message loop with peer {remote_peer_id}")
         while True:
             msg = read_message(socket)

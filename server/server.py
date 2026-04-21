@@ -1,9 +1,9 @@
 import socket
 import threading
-
 from protocol.handshake import perform_incoming_handshake
 from server.config import load_common_cfg, load_peer_cfg, get_my_peer_info
 from protocol.handle_peer_connection import handle_peer_connection
+from client.client import connect_to_previous_peers
 
 
 def handle_incoming_connection(
@@ -20,7 +20,6 @@ def handle_incoming_connection(
             connection,
             my_peer_id,
         )
-
         with connections_lock:
             connections[remote_id] = connection
 
@@ -57,7 +56,6 @@ def start_server(
     server_socket.bind((host, port))
     server_socket.listen()
     print(f"Server listening on {host}:{port}")
-
     while True:
         connection, address = server_socket.accept()
         threading.Thread(
