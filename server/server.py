@@ -15,13 +15,11 @@ def handle_incoming_connection(
     connections,
     connections_lock,
 ):
-    print("YES")
     try:
         remote_id = perform_incoming_handshake(
             connection,
             my_peer_id,
         )
-        print("JOJ")
         with connections_lock:
             connections[remote_id] = connection
 
@@ -35,7 +33,6 @@ def handle_incoming_connection(
         )
 
     except Exception as e:
-        print("what")
         print(f"Error handling incoming peer {address}: {e}")
     finally:
         try:
@@ -54,7 +51,6 @@ def start_server(
     connections=None,
     connections_lock=None,
 ):
-    print(host, port)
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     print(f"DEBUG host={repr(host)}, port={repr(port)}")
     server_socket.bind((host, port))

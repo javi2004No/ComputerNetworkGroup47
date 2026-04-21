@@ -29,9 +29,7 @@ def recv_exact(socket, n) -> bytes:
     """
     data = b""
     while len(data) < n:
-        print("I THINK I FOUND")
         chunk = socket.recv(n - len(data))
-        print("NO")
         if not chunk:
             raise ConnectionError("Connection closed while receiving data")
         data += chunk
