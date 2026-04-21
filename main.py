@@ -15,7 +15,7 @@ def main():
         "project_config_file_small/project_config_file_small/Common.cfg"
     )
     peers = load_peer_cfg(
-        "project_config_file_small/project_config_file_small/PeerInfo.cfg"
+        "project_config_file_small/project_config_file_small/PeerInfo_Local_Test.cfg"
     )
     my_peer_id = int(sys.argv[1])
 
@@ -31,7 +31,7 @@ def main():
         {},
         threading.Lock(),
     )  # start with connection = None
-    connect_to_previous_peers(peer_state)
+    #connect_to_previous_peers(peer_state)
 
     try:
         while True:

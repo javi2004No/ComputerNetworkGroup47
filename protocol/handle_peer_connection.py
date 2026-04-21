@@ -22,7 +22,7 @@ from utils.constant import (
 def handle_peer_connection(
     socket, remote_peer_id, peer_state, memory, connections, connections_lock
 ):
-    my_bitfield = memory.get_bitfield()
+    my_bitfield = memory.get_my_bitfield()
     if any(my_bitfield):
         socket.sendall(create_bitfield_msg(bitfield_to_bytes(my_bitfield)))
 

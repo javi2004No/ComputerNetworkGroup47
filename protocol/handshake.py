@@ -16,6 +16,7 @@ def recv_handshake(socket, expected_peer_id: int) -> int:
     We have to validate structure of the message: Check header, check zeros, check peer ID if expected_peer_id is provided.
     """
     data = recv_exact(socket, HANDSHAKE_MSG_LENGTH)
+    print("OKAY4")
     if not data.startswith(HEADER) or data[18:28] != ZEROS:
         raise ValueError("Invalid handshake message received")
     peer_id = int.from_bytes(data[28:32], byteorder="big")
@@ -27,13 +28,14 @@ def recv_handshake(socket, expected_peer_id: int) -> int:
 
 
 def perform_handshake(
-    socket: socket.socket, my_peer_id: int, expected_peer_id: int
+    socket, my_peer_id: int, expected_peer_id: int
 ) -> int:
     """
     Performs handshake, send handshake message and wait for handshake response
 
     Return peer ID if the hadnshake is successful
     """
-
-    send_handshake(socket, my_peer_id)
+    print("dsad")
+    #send_handshake(socket, my_peer_id)
+    print("why3")
     return recv_handshake(socket, expected_peer_id)
