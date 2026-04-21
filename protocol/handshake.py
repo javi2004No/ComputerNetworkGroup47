@@ -29,6 +29,7 @@ def recv_handshake(socket: socket.socket, expected_peer_id: int) -> int:
     return peer_id
 
 
+
 def perform_outgoing_handshake(
     socket: socket.socket, my_peer_id: int, expected_peer_id: int
 ) -> int:

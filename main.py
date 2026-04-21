@@ -38,7 +38,6 @@ def main():
     time.sleep(1)
     print(f"Prepare to connect to previous peers")
     connect_to_previous_peers(peer_state, memory, connections, connections_lock)
-
     try:
         while True:
             time.sleep(1)
