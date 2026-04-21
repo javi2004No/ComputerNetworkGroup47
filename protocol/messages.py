@@ -60,12 +60,17 @@ def create_have_msg(piece_index: int) -> bytes:
 
 # bitfield message have Header (length of message) + type (1 byte) + payload (bitfield, variable length)
 # sending bitfield message to inform neighbor about what pieces we have, so they can decide wheher they are interest or not
-def create_bitfield_msg(bitfield: list[int]) -> bytes:
-    message_len = 1 + len(bitfield)
+def create_bitfield_msg(bitfield_bytes: bytes) -> bytes:
+    """
+    Creates a bitfield message.
+    :param bitfield_bytes: The bitfield as bytes (output from bitfield_to_bytes())
+    :return: Complete bitfield message with 4-byte length, 1-byte type, and bitfield payload
+    """
+    message_len = 1 + len(bitfield_bytes)
     return (
         message_len.to_bytes(4, byteorder="big")
         + BITFIELD_TYPE.to_bytes(1, byteorder="big")
-        + bytes(bitfield)
+        + bitfield_bytes
     )
 
 

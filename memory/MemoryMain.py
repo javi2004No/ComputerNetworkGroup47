@@ -1,6 +1,8 @@
 from memory.mem_File import mem_File
 import random
+import os
 from memory.PeerState import PeerState
+from protocol.bitfield import bytes_to_bitfield
 
 
 class _NeighborData:
@@ -17,15 +19,41 @@ class MemoryMain:
         Set up the memory object with the current bitmap.
         :param peerState: The state of the peer containing configuration and peer information.
         """
+        # Calculate the number of pieces and create the bitfield
+        num_pieces = peerState.file_size // peerState.piece_size
+        if peerState.file_size % peerState.piece_size != 0:
+            num_pieces += 1
+
         bitField = []
-        # I am not sure what chunks each thefile have so I assume currently it is either all or nothing, I will update it later when I have more information about the file distribution
+        # Build bitfield based on whether this peer has the complete file
+        # If has_file == 1, mark all pieces as available (1)
+        # If has_file == 0, mark all pieces as unavailable (0)
         if peerState.has_file == 1:
-            bitField = [1] * (peerState.file_size // peerState.piece_size)
+            bitField = [1] * num_pieces
         else:
-            bitField = [0] * (peerState.file_size // peerState.piece_size)
+            bitField = [0] * num_pieces
+
         self._file = mem_File(
             peerState.has_file, peerState.file_size, peerState.piece_size, bitField
         )
+
+        # Load actual file chunks from disk if peer has the file
+        if peerState.has_file == 1:
+            file_path = f"test-local/{peerState.my_peer_id}/{peerState.file_name}"
+            try:
+                if os.path.exists(file_path):
+                    print(f"[Memory] Loading file from {file_path}")
+                    self._file.loadChunks(file_path)
+                    print(
+                        f"[Memory] File loaded successfully. Total pieces: {num_pieces}"
+                    )
+                else:
+                    print(
+                        f"[Memory] WARNING: File not found at {file_path}. Using empty chunks."
+                    )
+            except Exception as e:
+                print(f"[Memory] ERROR loading file from {file_path}: {e}")
+
         self._neighbors = {}
         self._fileSize = peerState.file_size
         self._chunkSize = peerState.piece_size
@@ -159,6 +187,18 @@ class MemoryMain:
         contains a list of neighbors to choke.
         """
         to_unchoke = []
+
+        # Handle empty downloads list
+        if not downloads:
+            # Choke all neighbors
+            choke = []
+            unchoke = []
+            for id, data in self._neighbors.items():
+                if not data.choked:
+                    choke.append(id)
+                    data.choked = True
+            return unchoke, choke
+
         # Will use the download rates to pick its preferred neighbors if the bitmap is not complete otherwise it will
         # just pick randomly
         if not self._file.isComplete():
@@ -167,13 +207,19 @@ class MemoryMain:
                 reverse=True
             )  # pick based on top fastest download rates
             cur = 0
-            while cur < self._windowSize:
+            # Limit window size to the number of available downloads
+            window = min(self._windowSize, len(downloads))
+            while cur < window and cur < len(download_rates):
                 i = cur
+                # Ensure we don't go out of bounds
+                if i >= len(download_rates):
+                    break
                 rate = download_rates[i]
+                # Find all rates equal to current rate
                 while i < len(download_rates) and rate == download_rates[i]:
                     i += 1
                 downloads_selected = []
-                if i > self._windowSize:
+                if i > window:
                     downloads_selected = self.pick_random_n(i - cur, downloads[cur:i])
                 else:
                     downloads_selected = downloads[cur:i]
@@ -181,9 +227,14 @@ class MemoryMain:
                     to_unchoke.append(download[0])
                 cur = i
         else:
-            downloads_selected = self.pick_random_n(self._windowSize, downloads)
-            for download in downloads_selected:
-                to_unchoke.append(download[0])
+            # File is complete - pick randomly from available downloads
+            num_to_select = min(self._windowSize, len(downloads))
+            if num_to_select > 0:
+                downloads_copy = downloads.copy()
+                downloads_selected = self.pick_random_n(num_to_select, downloads_copy)
+                for download in downloads_selected:
+                    to_unchoke.append(download[0])
+
         # Only returns the changing neighbors e.g neighbors that are choked and need to be unchoked and vice versa.
         # Also assumes that nothing will go wrong in the sending choking/unchoking message part.
         choke = []
@@ -207,20 +258,25 @@ class MemoryMain:
         choked = -1
         if (
             self._optimistic_neighbor != -1
+            and self._optimistic_neighbor in self._neighbors
             and self._neighbors[self._optimistic_neighbor].choked
         ):
             choked = self._optimistic_neighbor
+
+        # Build list of candidate peers: choked, interested, and NOT ourselves
         arr = []
         for id, val in self._neighbors.items():
-            if (
-                val.choked and val.interested
-            ):  # Vinh: Edit condition here to only consider peers interested in us and choked.
+            if val.choked and val.interested:
                 arr.append(id)
-        arr = self.pick_random_n(1, arr)
+
+        # Pick randomly from candidates
+        arr = self.pick_random_n(1, arr) if arr else []
+
         if arr == []:
             self._optimistic_neighbor = -1
         else:
             self._optimistic_neighbor = arr[0]
+
         return self._optimistic_neighbor, choked
 
     # --------------------from here will be peer controller script that will be triggered on event of protocol-------------------------------------
@@ -233,7 +289,10 @@ class MemoryMain:
         self._ensure_neighbor_exists(peer_id)
         if not self._neighbors[peer_id].interested:
             return -1
-        possible_requests = set(self.interest(peer_id)) - self._requests
+        # Get pieces that we're interested in but haven't requested yet
+        possible_requests = list(
+            set(self.interest(peer_id)) - self._requests
+        )  # Vinh: edit to list since set cause bug in pop
         if not possible_requests:
             return -1
         self._peer_id_to_request[peer_id] = self.pick_random_n(1, possible_requests)[0]
@@ -283,15 +342,20 @@ class MemoryMain:
         """
         return self.update_neighbor(peer_id, [piece_index], [[]])
 
-    def handle_bitfield(self, peer_id, bitfield):
+    def handle_bitfield(self, peer_id, bitfield_bytes):
         """
         Handles receiving a bitfield message from a peer.
         :param peer_id: The ID of the sender.
-        :param bitfield: The bitfield data in the message.
+        :param bitfield_bytes: The bitfield data as bytes from the message payload.
         :return: True if we should send an interested message to the peer. False if we should send a not interested
         message to the peer.
         """
-        return self.add_neighbor(peer_id, bitfield)
+        # Convert bytes bitfield to list[int] bitfield
+        num_pieces = self._fileSize // self._chunkSize
+        if self._fileSize % self._chunkSize != 0:
+            num_pieces += 1
+        bitfield_list = bytes_to_bitfield(bitfield_bytes, num_pieces)
+        return self.add_neighbor(peer_id, bitfield_list)
 
     def handle_request(self, peer_id, piece_index):
         """
