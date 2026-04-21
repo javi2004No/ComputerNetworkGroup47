@@ -40,6 +40,20 @@ class MemoryMain:
     def get_my_bitfield(self):
         return self._file.getBitField()
 
+    def _ensure_neighbor_exists(self, peer_id):
+        """
+        Ensures a neighbor exists in _neighbors. If not, creates it with an empty bitfield.
+        This allows handlers to be called before a bitfield message is received.
+        :param peer_id: The ID of the peer.
+        """
+        if peer_id not in self._neighbors:
+            empty_bitfield = [0] * (self._fileSize // self._chunkSize)
+            self._neighbors[peer_id] = _NeighborData()
+            self._neighbors[peer_id].file = mem_File(
+                0, self._fileSize, self._chunkSize, empty_bitfield
+            )
+
+
     def add_neighbor(self, name, chunks):
         """
         Creates a bitmap for the neighbor specified by name.
@@ -65,6 +79,7 @@ class MemoryMain:
         :return: return true if we should send an interested message. Warning: False only means we should not send
         any message not that we should send a not interested message.
         """
+        self._ensure_neighbor_exists(name)
         self._neighbors[name].file.update(indexes, chunks)
         if not self._neighbors[name].interested and self.interest(name) != []:
             self._neighbors[name].interested = True
@@ -216,6 +231,7 @@ class MemoryMain:
         :param peer_id: The ID of the peer we are requesting a piece from.
         :return: Returns the index of the piece we are interested in. If we are not interested in any piece returns -1.
         """
+        self._ensure_neighbor_exists(peer_id)
         if not self._neighbors[peer_id].interested:
             return -1
         possible_requests = set(self.interest(peer_id)) - self._requests
@@ -248,6 +264,7 @@ class MemoryMain:
         Handles receiving an interested message from a peer.
         :param peer_id: The ID of the sender.
         """
+        self._ensure_neighbor_exists(peer_id)
         self._neighbors[peer_id].interestedIn = True
 
     def handle_not_interested(self, peer_id):
@@ -255,6 +272,7 @@ class MemoryMain:
         Handles receiving a not interested message from a peer.
         :param peer_id: The ID of the sender.
         """
+        self._ensure_neighbor_exists(peer_id)
         self._neighbors[peer_id].interestedIn = False
 
     def handle_have(self, peer_id, piece_index):
@@ -285,6 +303,7 @@ class MemoryMain:
         optimistic neighbor. Returns an empty list if this is not true or this instance does not have the chunk
         specified.
         """
+        self._ensure_neighbor_exists(peer_id)
         if self._neighbors[peer_id].choked and peer_id != self._optimistic_neighbor:
             return []
         return self._file.getChunk(piece_index)
