@@ -68,6 +68,17 @@ class MemoryMain:
     def get_my_bitfield(self):
         return self._file.getBitField()
 
+    def is_network_complete(self):
+        if not self._file.isComplete():
+            return False
+
+        for neighbor in self._neighbors.values():
+            if neighbor.file:
+                if 0 in neighbor.file.getBitField():
+                    return False
+
+        return True
+
     def _ensure_neighbor_exists(self, peer_id):
         """
         Ensures a neighbor exists in _neighbors. If not, creates it with an empty bitfield.
@@ -80,7 +91,6 @@ class MemoryMain:
             self._neighbors[peer_id].file = mem_File(
                 0, self._fileSize, self._chunkSize, empty_bitfield
             )
-
 
     def add_neighbor(self, name, chunks):
         """
