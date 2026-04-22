@@ -1,3 +1,5 @@
+import threading
+
 class mem_File:
     def __init__(self, hasFile, fileSize, chunkSize, bitField):
         """
@@ -17,6 +19,7 @@ class mem_File:
         )  # Made chunks a dictionary that connects id to the chunk itself.
         self._chunkSize = chunkSize
         self._chunksLeft = self._chunksCount
+        self._lock = threading.Lock()
         if hasFile == 1:
             self._chunksLeft = 0
         self._bitField = bitField # For reference bitfiled is a list where each value in the list is 0 if the chunk does not exist or 1 if it does.
@@ -76,11 +79,12 @@ class mem_File:
         :param chunksGiven: The piece itself.
         :return: Nothing.
         """
-        for k, i in enumerate(indexes):
-            if self._bitField[i] == 0:
-                self._chunksLeft -= 1
-                self._chunks[i] = chunksGiven[k]
-            self._bitField[i] = 1
+        with self._lock:
+            for k, i in enumerate(indexes):
+                if self._bitField[i] == 0:
+                    self._chunksLeft -= 1
+                    self._chunks[i] = chunksGiven[k]
+                self._bitField[i] = 1
 
     def isComplete(self) -> bool:
         """
