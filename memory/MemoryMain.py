@@ -63,27 +63,29 @@ class MemoryMain:
         self._requests = set()  # A set containing all the requests we have sent.
         self._length_of_bitfield = len(bitField)
         self._completed = False if bitField[0] == 0 else True
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._peer_id_to_request = (
             {}
         )  # A dictionary containing what request I have sent to what peer.
 
     def get_my_bitfield(self):
-        return self._file.getBitField()
+        with self._lock:
+            return self._file.getBitField()
 
     def is_network_complete(self, numberOfPeers):
-        if not self._completed:
-            return False
+        with self._lock:
+            if not self._completed:
+                return False
 
-        if len(self._neighbors) < numberOfPeers:
-            return False
+            if len(self._neighbors) < numberOfPeers:
+                return False
 
-        for neighbor in self._neighbors.values():
-            if neighbor.file:
-                if 0 in neighbor.file.getBitField():
-                    return False
+            for neighbor in self._neighbors.values():
+                if neighbor.file:
+                    if 0 in neighbor.file.getBitField():
+                        return False
 
-        return True
+            return True
 
     def _ensure_neighbor_exists(self, peer_id):
         """
@@ -106,7 +108,8 @@ class MemoryMain:
             self._completed = True
 
     def get_is_complete(self):
-        return self._file.isComplete()
+        with self._lock:
+            return self._file.isComplete()
 
     def add_neighbor(self, name, chunks):
         """
@@ -120,7 +123,8 @@ class MemoryMain:
             self._neighbors[name].file = mem_File(
                 0, self._fileSize, self._chunkSize, chunks
             )
-            if self.interest(name) != []:
+            interested_pieces = self.interest(name)
+            if interested_pieces != []:
                 self._neighbors[name].interested = True
                 return True
             return False
@@ -148,9 +152,10 @@ class MemoryMain:
         :param index: The index of the chunk to update.
         :param chunk: What to update the chunk to.
         """
-        if len(indexes) != len(downloadChunks):
-            return
-        self._file.update(indexes, downloadChunks)
+        with self._lock:
+            if len(indexes) != len(downloadChunks):
+                return
+            self._file.update(indexes, downloadChunks)
 
     def interest(self, neighbor) -> list[int]:
         """
@@ -171,19 +176,20 @@ class MemoryMain:
         If we are not interested in a neighbor and we need to send a not-interested message return [neighbor, -1] for
         that neighbor. Else if we already sent the non-interested message return [neighbor, -2].
         """
-        fullInterests = []
-        for neighbor in self._neighbors.keys():
-            interestedIn = self.interest(neighbor)
-            if interestedIn == []:
-                if self._neighbors[neighbor].interested:
-                    fullInterests.append([neighbor, -1])
-                    self._neighbors[neighbor].interested = False
-                else:
-                    fullInterests.append([neighbor, -2])
+        with self._lock:
+            fullInterests = []
+            for neighbor in self._neighbors.keys():
+                interestedIn = self.interest(neighbor)
+                if interestedIn == []:
+                    if self._neighbors[neighbor].interested:
+                        fullInterests.append([neighbor, -1])
+                        self._neighbors[neighbor].interested = False
+                    else:
+                        fullInterests.append([neighbor, -2])
 
-            else:
-                fullInterests.append([neighbor] + interestedIn)
-        return fullInterests
+                else:
+                    fullInterests.append([neighbor] + interestedIn)
+            return fullInterests
 
     def calculate_download_rate(self, downloads) -> list[float]:
         """
@@ -215,98 +221,104 @@ class MemoryMain:
         :return: a tuple containing where the first element contains a list of neighbors to unchoke and the second
         contains a list of neighbors to choke.
         """
-        to_unchoke = []
+        with self._lock:
+            to_unchoke = []
 
-        # Handle empty downloads list
-        if not downloads:
-            # Choke all neighbors
+            # Handle empty downloads list
+            if not downloads:
+                # Choke all neighbors
+                choke = []
+                unchoke = []
+                for id, data in self._neighbors.items():
+                    if not data.choked:
+                        choke.append(id)
+                        data.choked = True
+                return unchoke, choke
+
+            # Will use the download rates to pick its preferred neighbors if the bitmap is not complete otherwise it will
+            # just pick randomly
+            if not self._file.isComplete():
+                download_rates = self.calculate_download_rate(downloads)
+                download_rates.sort(
+                    reverse=True
+                )  # pick based on top fastest download rates
+                cur = 0
+                # Limit window size to the number of available downloads
+                window = min(self._windowSize, len(downloads))
+                while cur < window and cur < len(download_rates):
+                    i = cur
+                    # Ensure we don't go out of bounds
+                    if i >= len(download_rates):
+                        break
+                    rate = download_rates[i]
+                    # Find all rates equal to current rate
+                    while i < len(download_rates) and rate == download_rates[i]:
+                        i += 1
+                    downloads_selected = []
+                    if i > window:
+                        downloads_selected = self.pick_random_n(
+                            i - cur, downloads[cur:i]
+                        )
+                    else:
+                        downloads_selected = downloads[cur:i]
+                    for download in downloads_selected:
+                        to_unchoke.append(download[0])
+                    cur = i
+            else:
+                # File is complete - pick randomly from available downloads
+                num_to_select = min(self._windowSize, len(downloads))
+                if num_to_select > 0:
+                    downloads_copy = downloads.copy()
+                    downloads_selected = self.pick_random_n(
+                        num_to_select, downloads_copy
+                    )
+                    for download in downloads_selected:
+                        to_unchoke.append(download[0])
+
+            # Only returns the changing neighbors e.g neighbors that are choked and need to be unchoked and vice versa.
+            # Also assumes that nothing will go wrong in the sending choking/unchoking message part.
             choke = []
             unchoke = []
             for id, data in self._neighbors.items():
-                if not data.choked:
+                if (
+                    data.choked and id in to_unchoke
+                ):  # Vinh: Edit condition here to only unchoke peers that are in the to_unchoke list and currently choked.
+                    unchoke.append(id)
+                    self._neighbors[id].choked = False
+                elif not data.choked and id not in to_unchoke:
                     choke.append(id)
-                    data.choked = True
+                    self._neighbors[id].choked = True
             return unchoke, choke
-
-        # Will use the download rates to pick its preferred neighbors if the bitmap is not complete otherwise it will
-        # just pick randomly
-        if not self._file.isComplete():
-            download_rates = self.calculate_download_rate(downloads)
-            download_rates.sort(
-                reverse=True
-            )  # pick based on top fastest download rates
-            cur = 0
-            # Limit window size to the number of available downloads
-            window = min(self._windowSize, len(downloads))
-            while cur < window and cur < len(download_rates):
-                i = cur
-                # Ensure we don't go out of bounds
-                if i >= len(download_rates):
-                    break
-                rate = download_rates[i]
-                # Find all rates equal to current rate
-                while i < len(download_rates) and rate == download_rates[i]:
-                    i += 1
-                downloads_selected = []
-                if i > window:
-                    downloads_selected = self.pick_random_n(i - cur, downloads[cur:i])
-                else:
-                    downloads_selected = downloads[cur:i]
-                for download in downloads_selected:
-                    to_unchoke.append(download[0])
-                cur = i
-        else:
-            # File is complete - pick randomly from available downloads
-            num_to_select = min(self._windowSize, len(downloads))
-            if num_to_select > 0:
-                downloads_copy = downloads.copy()
-                downloads_selected = self.pick_random_n(num_to_select, downloads_copy)
-                for download in downloads_selected:
-                    to_unchoke.append(download[0])
-
-        # Only returns the changing neighbors e.g neighbors that are choked and need to be unchoked and vice versa.
-        # Also assumes that nothing will go wrong in the sending choking/unchoking message part.
-        choke = []
-        unchoke = []
-        for id, data in self._neighbors.items():
-            if (
-                data.choked and id in to_unchoke
-            ):  # Vinh: Edit condition here to only unchoke peers that are in the to_unchoke list and currently choked.
-                unchoke.append(id)
-                self._neighbors[id].choked = False
-            elif not data.choked and id not in to_unchoke:
-                choke.append(id)
-                self._neighbors[id].choked = True
-        return unchoke, choke
 
     def pick_optimistic_neighbor(self):
         """
         Picks a random neighbor that is interested in it and is choked.
         :return: returns the neighbor that should be unchoked and if a neighbor needs to be choked.
         """
-        choked = -1
-        if (
-            self._optimistic_neighbor != -1
-            and self._optimistic_neighbor in self._neighbors
-            and self._neighbors[self._optimistic_neighbor].choked
-        ):
-            choked = self._optimistic_neighbor
+        with self._lock:
+            choked = -1
+            if (
+                self._optimistic_neighbor != -1
+                and self._optimistic_neighbor in self._neighbors
+                and self._neighbors[self._optimistic_neighbor].choked
+            ):
+                choked = self._optimistic_neighbor
 
-        # Build list of candidate peers: choked, interested, and NOT ourselves
-        arr = []
-        for id, val in self._neighbors.items():
-            if val.choked and val.interested:
-                arr.append(id)
+            # Build list of candidate peers: choked, interested, and NOT ourselves
+            arr = []
+            for id, val in self._neighbors.items():
+                if val.choked and val.interested:
+                    arr.append(id)
 
-        # Pick randomly from candidates
-        arr = self.pick_random_n(1, arr) if arr else []
+            # Pick randomly from candidates
+            arr = self.pick_random_n(1, arr) if arr else []
 
-        if arr == []:
-            self._optimistic_neighbor = -1
-        else:
-            self._optimistic_neighbor = arr[0]
+            if arr == []:
+                self._optimistic_neighbor = -1
+            else:
+                self._optimistic_neighbor = arr[0]
 
-        return self._optimistic_neighbor, choked
+            return self._optimistic_neighbor, choked
 
     # --------------------from here will be peer controller script that will be triggered on event of protocol-------------------------------------
     def pick_request(self, peer_id):
@@ -315,27 +327,31 @@ class MemoryMain:
         :param peer_id: The ID of the peer we are requesting a piece from.
         :return: Returns the index of the piece we are interested in. If we are not interested in any piece returns -1.
         """
-        self._ensure_neighbor_exists(peer_id)
-        if not self._neighbors[peer_id].interested:
-            return -1
-        # Get pieces that we're interested in but haven't requested yet
-        possible_requests = list(
-            set(self.interest(peer_id)) - self._requests
-        )  # Vinh: edit to list since set cause bug in pop
-        if not possible_requests:
-            return -1
-        self._peer_id_to_request[peer_id] = self.pick_random_n(1, possible_requests)[0]
-        self._requests.add(self._peer_id_to_request[peer_id])
-        return self._peer_id_to_request[peer_id]
+        with self._lock:
+            self._ensure_neighbor_exists(peer_id)
+            if not self._neighbors[peer_id].interested:
+                return -1
+            # Get pieces that we're interested in but haven't requested yet
+            possible_requests = list(
+                set(self.interest(peer_id)) - self._requests
+            )  # Vinh: edit to list since set cause bug in pop
+            if not possible_requests:
+                return -1
+            self._peer_id_to_request[peer_id] = self.pick_random_n(
+                1, possible_requests
+            )[0]
+            self._requests.add(self._peer_id_to_request[peer_id])
+            return self._peer_id_to_request[peer_id]
 
     def handle_choke(self, peer_id):
         """
         Handles receiving a choke message from a peer.
         :param peer_id: The ID of the sender.
         """
-        if peer_id in self._peer_id_to_request.keys():
-            self._requests.pop(self._peer_id_to_request[peer_id])
-            self._peer_id_to_request.pop(peer_id)
+        with self._lock:
+            if peer_id in self._peer_id_to_request.keys():
+                self._requests.discard(self._peer_id_to_request[peer_id])
+                self._peer_id_to_request.pop(peer_id)
 
     def handle_unchoke(self, peer_id):
         """
@@ -351,16 +367,18 @@ class MemoryMain:
         Handles receiving an interested message from a peer.
         :param peer_id: The ID of the sender.
         """
-        self._ensure_neighbor_exists(peer_id)
-        self._neighbors[peer_id].interestedIn = True
+        with self._lock:
+            self._ensure_neighbor_exists(peer_id)
+            self._neighbors[peer_id].interestedIn = True
 
     def handle_not_interested(self, peer_id):
         """
         Handles receiving a not interested message from a peer.
         :param peer_id: The ID of the sender.
         """
-        self._ensure_neighbor_exists(peer_id)
-        self._neighbors[peer_id].interestedIn = False
+        with self._lock:
+            self._ensure_neighbor_exists(peer_id)
+            self._neighbors[peer_id].interestedIn = False
 
     def handle_have(self, peer_id, piece_index):
         """
@@ -396,8 +414,11 @@ class MemoryMain:
         optimistic neighbor. Returns an empty list if this is not true or this instance does not have the chunk
         specified.
         """
-        self._ensure_neighbor_exists(peer_id)
-        if self._neighbors[peer_id].choked and peer_id != self._optimistic_neighbor:
+        with self._lock:
+            self._ensure_neighbor_exists(peer_id)
+            if self._neighbors[peer_id].choked and peer_id != self._optimistic_neighbor:
+                return []
+            return self._file.getChunk(piece_index)
             return []
         return self._file.getChunk(piece_index)
 

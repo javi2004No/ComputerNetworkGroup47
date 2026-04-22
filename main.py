@@ -34,7 +34,7 @@ def main():
             memory,
             connections,
             connections_lock,
-            log
+            log,
         ),
         daemon=True,
     )
@@ -49,8 +49,9 @@ def main():
 
     try:
         while True:
-            if memory.is_network_complete(len(peers)-1):
+            if memory.is_network_complete(len(peers) - 1):
                 print(f"[Network] All peers have complete files. Terminating...")
+                log.close()
                 break
             time.sleep(1)
     except KeyboardInterrupt:
