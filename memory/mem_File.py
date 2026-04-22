@@ -20,7 +20,12 @@ class mem_File:
         self._chunkSize = chunkSize
         self._chunksLeft = self._chunksCount
         self._lock = threading.Lock()
-        if hasFile == 1:
+        check_bitfield = True
+        for bit in bitField:
+            if bit == 0:
+                check_bitfield = False
+                break
+        if hasFile == 1 or check_bitfield:
             self._chunksLeft = 0
         self._bitField = bitField # For reference bitfiled is a list where each value in the list is 0 if the chunk does not exist or 1 if it does.
 
