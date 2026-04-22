@@ -92,6 +92,11 @@ def handle_peer_connection(
                 log.log_downloaded_piece(remote_peer_id, piece_index, memory.get_number_of_pieces())
                 print(f"[Peer Connection] Received piece {piece_index} from peer {remote_peer_id}")
                 not_interested_peers, next_req, piece_size = result
+                for peer_id in connections:
+                    try:
+                        connections[peer_id].sendall(create_have_msg(piece_index))
+                    except:
+                        pass
                 # Send not interested messages to peers that no longer have interesting pieces
                 for peer_id in not_interested_peers:
                     if peer_id != remote_peer_id and peer_id in connections:
