@@ -3,11 +3,12 @@ import threading
 from memory.PeerState import PeerState
 from protocol.handshake import perform_outgoing_handshake
 from protocol.handle_peer_connection import handle_peer_connection
+from utils import logger
 
 
 # Client will responsible for: Connect to previous peers, perform handshake, vv.
 # No protocol decision logic here
-def connect_to_previous_peers(state: PeerState, memory, connections, connections_lock):
+def connect_to_previous_peers(state: PeerState, memory, connections, connections_lock, log):
     previous = []
     for peer in state.peers:
         if peer["peer_id"] == state.my_peer_id:
@@ -25,6 +26,7 @@ def connect_to_previous_peers(state: PeerState, memory, connections, connections
                 sock, state.my_peer_id, peer["peer_id"]
             )
             print(f"Successfully connected to peer {remote_peer_id}")
+            log.log_tcp_connection(remote_peer_id, True)
 
             with connections_lock:
                 connections[remote_peer_id] = sock
@@ -39,6 +41,7 @@ def connect_to_previous_peers(state: PeerState, memory, connections, connections
                     memory,
                     connections,
                     connections_lock,
+                    log
                 ),
                 daemon=True,
             ).start()
