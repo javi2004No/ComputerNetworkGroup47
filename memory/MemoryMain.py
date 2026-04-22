@@ -3,6 +3,7 @@ import random
 import os
 from memory.PeerState import PeerState
 from protocol.bitfield import bytes_to_bitfield
+import threading
 
 
 class _NeighborData:
@@ -61,6 +62,8 @@ class MemoryMain:
         self._optimistic_neighbor = -1  # undefined yet
         self._requests = set()  # A set containing all the requests we have sent.
         self._length_of_bitfield = len(bitField)
+        self._completed = False if bitField[0] == 0 else True
+        self._lock = threading.Lock()
         self._peer_id_to_request = (
             {}
         )  # A dictionary containing what request I have sent to what peer.
@@ -68,8 +71,11 @@ class MemoryMain:
     def get_my_bitfield(self):
         return self._file.getBitField()
 
-    def is_network_complete(self):
-        if not self._file.isComplete():
+    def is_network_complete(self, numberOfPeers):
+        if not self._completed:
+            return False
+
+        if len(self._neighbors) < numberOfPeers:
             return False
 
         for neighbor in self._neighbors.values():
@@ -95,6 +101,10 @@ class MemoryMain:
     def get_number_of_pieces(self):
         return self._file.getNumOfChunks()
 
+    def set_completed(self):
+        with self._lock:
+            self._completed = True
+
     def get_is_complete(self):
         return self._file.isComplete()
 
@@ -105,14 +115,15 @@ class MemoryMain:
         :param chunks: The chunks that the neighbor contains.
         :return: True if we are interested in the neighbor false otherwise.
         """
-        self._neighbors[name] = _NeighborData()
-        self._neighbors[name].file = mem_File(
-            0, self._fileSize, self._chunkSize, chunks
-        )
-        if self.interest(name) != []:
-            self._neighbors[name].interested = True
-            return True
-        return False
+        with self._lock:
+            self._neighbors[name] = _NeighborData()
+            self._neighbors[name].file = mem_File(
+                0, self._fileSize, self._chunkSize, chunks
+            )
+            if self.interest(name) != []:
+                self._neighbors[name].interested = True
+                return True
+            return False
 
     def update_neighbor(self, name, indexes, chunks):
         """
@@ -123,12 +134,13 @@ class MemoryMain:
         :return: return true if we should send an interested message. Warning: False only means we should not send
         any message not that we should send a not interested message.
         """
-        self._ensure_neighbor_exists(name)
-        self._neighbors[name].file.update(indexes, chunks)
-        if not self._neighbors[name].interested and self.interest(name) != []:
-            self._neighbors[name].interested = True
-            return True
-        return False
+        with self._lock:
+            self._ensure_neighbor_exists(name)
+            self._neighbors[name].file.update(indexes, chunks)
+            if not self._neighbors[name].interested and self.interest(name) != []:
+                self._neighbors[name].interested = True
+                return True
+            return False
 
     def download_bitmap(self, indexes: list[int], downloadChunks) -> None:
         """
@@ -368,6 +380,7 @@ class MemoryMain:
         message to the peer.
         """
         # Convert bytes bitfield to list[int] bitfield
+
         num_pieces = self._fileSize // self._chunkSize
         if self._fileSize % self._chunkSize != 0:
             num_pieces += 1
@@ -399,14 +412,15 @@ class MemoryMain:
         we wish to request from the same peer specified by peer_id. If we are not interested in any pieces we return -1.
         Third, we have an int representing the length of the piece we downloaded.
         """
-        self._file.update([piece_index], [data])
-        fullInterest = self.all_interests()
-        not_interested_message = []
-        for neighbor in fullInterest:
-            if neighbor[1] == -1:
-                not_interested_message.append(neighbor[0])
-        return (
-            not_interested_message,
-            self.pick_request(peer_id),
-            self._file.getSizeOfChunk(piece_index),
-        )
+        with self._lock:
+            self._file.update([piece_index], [data])
+            fullInterest = self.all_interests()
+            not_interested_message = []
+            for neighbor in fullInterest:
+                if neighbor[1] == -1:
+                    not_interested_message.append(neighbor[0])
+            return (
+                not_interested_message,
+                self.pick_request(peer_id),
+                self._file.getSizeOfChunk(piece_index),
+            )
