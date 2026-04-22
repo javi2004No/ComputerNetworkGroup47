@@ -8,6 +8,7 @@ import sys
 import time
 from memory.PeerState import PeerState
 from client.client import connect_to_previous_peers
+from utils import logger
 
 
 def main():
@@ -21,6 +22,7 @@ def main():
     memory = MemoryMain(peer_state)
     connections = {}
     connections_lock = threading.Lock()
+    log = logger.logger(my_peer_id)
 
     server_thread = threading.Thread(
         target=start_server,
@@ -32,13 +34,14 @@ def main():
             memory,
             connections,
             connections_lock,
+            log
         ),
         daemon=True,
     )
     server_thread.start()
     time.sleep(1)
     print(f"Prepare to connect to previous peers")
-    connect_to_previous_peers(peer_state, memory, connections, connections_lock)
+    connect_to_previous_peers(peer_state, memory, connections, connections_lock, log)
 
     # Start the unchoking scheduler
     print(f"Starting unchoking scheduler")
@@ -51,6 +54,7 @@ def main():
                 break
             time.sleep(1)
     except KeyboardInterrupt:
+        log.close()
         print("Shutting down...")
 
 

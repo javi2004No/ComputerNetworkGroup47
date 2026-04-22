@@ -31,6 +31,7 @@ def handle_peer_connection(
     memory,
     connections,
     connections_lock,
+    log
 ):
     try:
         print(f"[Peer Connection] Starting protocol loop with peer {remote_peer_id}")
@@ -50,18 +51,23 @@ def handle_peer_connection(
             
             # Handle message responses based on message type
             if msg["type"] == CHOKE_TYPE:
+                log.log_choked(remote_peer_id)
                 print(f"[Peer Connection] Peer {remote_peer_id} choked us")
             elif msg["type"] == UNCHOKE_TYPE:
+                log.log_unchoked(remote_peer_id)
                 print(f"[Peer Connection] Peer {remote_peer_id} unchoked us")
                 piece_index = result
                 if piece_index != -1:
                     print(f"[Peer Connection] Requesting piece {piece_index} from peer {remote_peer_id}")
                     socket.sendall(create_request_msg(piece_index))
             elif msg["type"] == INTERESTED_TYPE:
+                log.log_received_interested(remote_peer_id)
                 print(f"[Peer Connection] Peer {remote_peer_id} is interested")
             elif msg["type"] == NOT_INTERESTED_TYPE:
+                log.log_received_not_interested(remote_peer_id)
                 print(f"[Peer Connection] Peer {remote_peer_id} is NOT interested")
             elif msg["type"] == HAVE_TYPE:
+                log.log_received_have(remote_peer_id, msg["piece_index"])
                 print(f"[Peer Connection] Peer {remote_peer_id} has piece {msg.get('piece_index', '?')}")
                 if result:
                     print(f"[Peer Connection] Sending interested to peer {remote_peer_id}")
@@ -83,6 +89,7 @@ def handle_peer_connection(
                     print(f"[Peer Connection] Cannot send piece {piece_index} to peer {remote_peer_id} (choked or don't have it)")
             elif msg["type"] == PIECE_TYPE:
                 piece_index = msg.get("piece_index", -1)
+                log.log_downloaded_piece(remote_peer_id, piece_index, memory.get_number_of_pieces())
                 print(f"[Peer Connection] Received piece {piece_index} from peer {remote_peer_id}")
                 not_interested_peers, next_req, piece_size = result
                 # Send not interested messages to peers that no longer have interesting pieces
@@ -97,6 +104,8 @@ def handle_peer_connection(
                 if next_req != -1:
                     print(f"[Peer Connection] Requesting next piece {next_req} from peer {remote_peer_id}")
                     socket.sendall(create_request_msg(next_req))
+                elif memory.get_is_complete():
+                    log.log_completed_download()
     except ConnectionError as e:
         print(f"[Peer Connection] Connection error with peer {remote_peer_id}: {e}")
     except Exception as e:

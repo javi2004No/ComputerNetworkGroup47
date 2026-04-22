@@ -107,3 +107,10 @@ class mem_File:
         if self._bitField[index] == 0:
             return []
         return self._chunks[index]
+
+    def getNumOfChunks(self):
+        ans = 0
+        for bit in self._bitField:
+            if bit == 1:
+                ans+=1
+        return ans

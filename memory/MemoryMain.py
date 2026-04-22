@@ -92,6 +92,12 @@ class MemoryMain:
                 0, self._fileSize, self._chunkSize, empty_bitfield
             )
 
+    def get_number_of_pieces(self):
+        return self._file.getNumOfChunks()
+
+    def get_is_complete(self):
+        return self._file.isComplete()
+
     def add_neighbor(self, name, chunks):
         """
         Creates a bitmap for the neighbor specified by name.

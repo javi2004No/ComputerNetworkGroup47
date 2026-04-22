@@ -14,6 +14,7 @@ def handle_incoming_connection(
     memory,
     connections,
     connections_lock,
+    log
 ):
     try:
         remote_id = perform_incoming_handshake(
@@ -23,6 +24,8 @@ def handle_incoming_connection(
         with connections_lock:
             connections[remote_id] = connection
 
+        log.log_tcp_connection(remote_id, False)
+
         handle_peer_connection(
             socket=connection,
             remote_peer_id=remote_id,
@@ -30,6 +33,7 @@ def handle_incoming_connection(
             memory=memory,
             connections=connections,
             connections_lock=connections_lock,
+            log=log
         )
 
     except Exception as e:
@@ -50,6 +54,7 @@ def start_server(
     memory=None,
     connections=None,
     connections_lock=None,
+    log=None
 ):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     print(f"DEBUG host={repr(host)}, port={repr(port)}")
@@ -68,6 +73,7 @@ def start_server(
                 memory,
                 connections,
                 connections_lock,
+                log
             ),
             daemon=True,
         ).start()  # each client will be handled in a separate thread
