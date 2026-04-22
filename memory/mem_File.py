@@ -19,7 +19,7 @@ class mem_File:
         self._chunksLeft = self._chunksCount
         if hasFile == 1:
             self._chunksLeft = 0
-        self._bitField = bitField  # For reference bitfiled is a list where each value in the list is 0 if the chunk does not exist or 1 if it does.
+        self._bitField = bitField # For reference bitfiled is a list where each value in the list is 0 if the chunk does not exist or 1 if it does.
 
     def getBitField(self):
         """

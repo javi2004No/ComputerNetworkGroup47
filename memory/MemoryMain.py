@@ -32,7 +32,6 @@ class MemoryMain:
             bitField = [1] * num_pieces
         else:
             bitField = [0] * num_pieces
-
         self._file = mem_File(
             peerState.has_file, peerState.file_size, peerState.piece_size, bitField
         )
@@ -61,6 +60,7 @@ class MemoryMain:
         self._windowSize = peerState.number_of_preferred_neighbors
         self._optimistic_neighbor = -1  # undefined yet
         self._requests = set()  # A set containing all the requests we have sent.
+        self._length_of_bitfield = len(bitField)
         self._peer_id_to_request = (
             {}
         )  # A dictionary containing what request I have sent to what peer.
@@ -86,7 +86,7 @@ class MemoryMain:
         :param peer_id: The ID of the peer.
         """
         if peer_id not in self._neighbors:
-            empty_bitfield = [0] * (self._fileSize // self._chunkSize)
+            empty_bitfield = [0] * self._length_of_bitfield
             self._neighbors[peer_id] = _NeighborData()
             self._neighbors[peer_id].file = mem_File(
                 0, self._fileSize, self._chunkSize, empty_bitfield
