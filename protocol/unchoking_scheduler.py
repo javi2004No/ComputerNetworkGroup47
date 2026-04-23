@@ -3,7 +3,7 @@ import time
 from protocol.messages import create_choke_msg, create_unchoke_msg
 
 
-def start_unchoking_scheduler(peer_state, memory, connections, connections_lock):
+def start_unchoking_scheduler(peer_state, memory, connections, connections_lock, log):
     """
     Starts the unchoking scheduler thread that:
     1. Every unchoking_interval seconds: selects preferred neighbors based on download rates
@@ -30,7 +30,7 @@ def start_unchoking_scheduler(peer_state, memory, connections, connections_lock)
                     >= peer_state.unchoking_interval
                 ):
                     last_preferred_update = current_time
-                    update_preferred_neighbors(memory, connections, connections_lock)
+                    update_preferred_neighbors(memory, connections, connections_lock, log)
 
                 # update optimistic neighbor every optimistic_unchoking_interval seconds
                 if (
@@ -38,7 +38,7 @@ def start_unchoking_scheduler(peer_state, memory, connections, connections_lock)
                     >= peer_state.optimistic_unchoking_interval
                 ):
                     last_optimistic_update = current_time
-                    update_optimistic_neighbor(memory, connections, connections_lock)
+                    update_optimistic_neighbor(memory, connections, connections_lock, log)
 
                 time.sleep(0.1)
 
@@ -52,7 +52,7 @@ def start_unchoking_scheduler(peer_state, memory, connections, connections_lock)
     scheduler_thread.start()
 
 
-def update_preferred_neighbors(memory, connections, connections_lock):
+def update_preferred_neighbors(memory, connections, connections_lock, log):
     """
     Selects and unchokes preferred neighbors based on download rates.
     Chokes all other neighbors that are not optimistically unchoked.
@@ -76,7 +76,8 @@ def update_preferred_neighbors(memory, connections, connections_lock):
 
         # calculate preferred neighbors (in real implementation, would use download rates. check MemoryMain.py)
         download_data = [[peer_id, 0] for peer_id in interested_neighbors]
-        unchoke_list, choke_list = memory.pick_preferred_neighbors(download_data)
+        unchoke_list, choke_list, preferred_neighbors = memory.pick_preferred_neighbors(download_data)
+        log.log_change_of_preferred_neighbors(preferred_neighbors)
 
         print(f"[Unchoking Scheduler] Preferred neighbors update:")
         print(f"  Unchoke: {unchoke_list}")
@@ -113,7 +114,7 @@ def update_preferred_neighbors(memory, connections, connections_lock):
         traceback.print_exc()
 
 
-def update_optimistic_neighbor(memory, connections, connections_lock):
+def update_optimistic_neighbor(memory, connections, connections_lock, log):
     """
     Randomly selects one choked interested peer and sends unchoke.
     Chokes the previous optimistically unchoked peer (if different).
@@ -124,6 +125,7 @@ def update_optimistic_neighbor(memory, connections, connections_lock):
 
         # pick new optimistic neighbor
         new_optimistic, choke_peer = memory.pick_optimistic_neighbor()
+        log.log_change_of_optimistically_unchoked_neighbor(new_optimistic)
 
         print(f"[Unchoking Scheduler] Optimistic unchoke update:")
         print(f"  Old optimistic peer: {old_optimistic}")

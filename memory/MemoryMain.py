@@ -288,7 +288,7 @@ class MemoryMain:
                 elif not data.choked and id not in to_unchoke:
                     choke.append(id)
                     self._neighbors[id].choked = True
-            return unchoke, choke
+            return unchoke, choke, to_unchoke
 
     def pick_optimistic_neighbor(self):
         """
