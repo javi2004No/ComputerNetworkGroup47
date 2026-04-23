@@ -24,12 +24,12 @@ class logger:
 
     def log_change_of_preferred_neighbors(self, preferred_neighbors):
         with self._lock:
-            to_write = _get_time() + "Peer " + str(self._id) + "has the preferred neighbors"
+            to_write = _get_time() + "Peer " + str(self._id) + " has the preferred neighbors"
             if preferred_neighbors:
                 to_write += " " + str(preferred_neighbors[0])
                 for neighbor in preferred_neighbors[1:]:
                     to_write += ", " + str(neighbor)
-            to_write += "."
+            to_write += ".\n"
             self._file.write(to_write)
             self._file.flush()
 
