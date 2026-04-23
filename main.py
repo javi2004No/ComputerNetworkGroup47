@@ -45,7 +45,7 @@ def main():
 
     # Start the unchoking scheduler
     print(f"Starting unchoking scheduler")
-    start_unchoking_scheduler(peer_state, memory, connections, connections_lock)
+    start_unchoking_scheduler(peer_state, memory, connections, connections_lock, log)
 
     try:
         while True:
