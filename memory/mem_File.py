@@ -22,6 +22,10 @@ class mem_File:
         self._lock = threading.Lock()
         if hasFile == 1:
             self._chunksLeft = 0
+        else:
+            for bit in bitField:
+                if bit == 1:
+                    self._chunksLeft -= 1
         self._bitField = bitField # For reference bitfiled is a list where each value in the list is 0 if the chunk does not exist or 1 if it does.
 
     def getBitField(self):

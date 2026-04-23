@@ -110,7 +110,6 @@ def handle_peer_connection(
                     print(f"[Peer Connection] Requesting next piece {next_req} from peer {remote_peer_id}")
                     socket.sendall(create_request_msg(next_req))
                 elif memory.get_is_complete():
-                    print("HEYYYYYYYYYYYYYYYYYYYYYYYY")
                     log.log_completed_download()
                     memory.set_completed()
     except ConnectionError as e:
